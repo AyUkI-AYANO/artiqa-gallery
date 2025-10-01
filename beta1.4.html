@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Artiqa — 艺术画廊（游客 / 管理员）</title>
+  <style>
+    /* ===== Base ===== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-serif, Georgia, "Times New Roman", serif;
+      color: #1a1a1a; background: #f9fafb;
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+    }
+    :root {
+      --ink: #161616;
+      --muted: #6b7280;
+      --accent: #7c3aed;
+      --glass: rgba(255, 255, 255, 0.55);
+      --glass-stroke: rgba(0,0,0,.06);
+      --card: rgba(255,255,255,.8);
+      --ease: cubic-bezier(.22,.61,.36,1);
+      --dur: .8s;
+      --tile-bg: #ffffffaa;
+    }
+
+    /* ===== Background: soft gradient animation ===== */
+    #bgfx {
+      position: fixed; inset:0; width:100%; height:100%; z-index:0;
+      background: linear-gradient(-45deg,#a78bfa,#60a5fa,#f472b6,#fcd34d);
+      background-size: 400% 400%;
+      animation: gradientShift 25s ease infinite;
+      pointer-events:none;
+      filter: saturate(1.05) brightness(1.02);
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* ===== Header & menu ===== */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(10px) saturate(1.2);
+      background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.6));
+      border-bottom: 1px solid var(--glass-stroke);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 20px; display:flex; align-items:center; gap:14px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing:.5px; }
+    .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: conic-gradient(from 30deg, #c084fc, #60a5fa, #f472b6, #c084fc); box-shadow: 0 3px 10px rgba(124,58,237,.25) inset; }
+    .spacer { flex: 1; }
+
+    .top-actions { display:flex; gap:10px; align-items:center; }
+    .menu { position:relative; display:flex; gap:14px; align-items:center; margin-left: 16px; }
+    .menu .indicator{ position:absolute; bottom:-2px; height:2px; width:28px; background: linear-gradient(90deg,#a78bfa,#7c3aed); border-radius:2px; left:0; transition: transform .45s var(--ease), width .45s var(--ease); }
+    .link { appearance:none; border:none; background:transparent; font-weight:600; color:#374151; cursor:pointer; padding:8px 10px; border-radius:10px; }
+    .link:hover{ background:rgba(124,58,237,.08); }
+    .link.active{ color:var(--accent); }
+
+    .btn { appearance: none; border: 1px solid var(--glass-stroke); background: var(--card); padding: 8px 12px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease); }
+    .btn:hover{ transform: translateY(-1px); box-shadow:0 10px 18px rgba(17,24,39,.10); }
+    .btn.primary{ background: linear-gradient(180deg,#a78bfa,#7c3aed); color: #fff; border: none; }
+    .btn.ghost{ background: transparent; }
+    .tag { font-size: 12px; padding: 4px 8px; border-radius: 999px; background: #eef2ff; color:#3730a3; border: 1px solid #c7d2fe; }
+
+    .hero { max-width: 1100px; margin: 30px auto 10px; padding: 0 20px; position: relative; z-index:1; }
+    .hero h1 { margin: 0 0 6px; font-size: clamp(26px, 3.5vw, 40px); line-height:1.1; letter-spacing:.3px; }
+    .hero p { margin: 6px 0 0; color: var(--muted); }
+
+    /* ===== Gallery ===== */
+    .toolbar { max-width:1100px; margin: 0 auto; padding: 0 22px 8px; display:flex; gap:8px; align-items:center; color:var(--muted); }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; font-size:12px; }
+    .pill strong{ color:#111; }
+    .clearFilter{ margin-left:auto; }
+
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 22px; max-width: 1100px; margin: 0 auto 120px; position: relative; z-index:1; }
+    .card { position: relative; overflow: hidden; border-radius: 16px; background: var(--glass); border: 1px solid var(--glass-stroke); box-shadow: 0 10px 30px rgba(17,24,39,.06); cursor: zoom-in; isolation: isolate; transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
+    .card img { width: 100%; height: 220px; object-fit: cover; display: block; pointer-events: none; transform: scale(1.02); transition: transform .6s var(--ease); }
+    .card .meta { position: absolute; inset: auto 0 0 0; padding: 10px 12px; color: #111; backdrop-filter: blur(8px); background: linear-gradient(180deg, rgba(255,255,255,.0), rgba(255,255,255,.9)); transition: transform .45s var(--ease); }
+    .card .title { font-weight: 700; font-size: 14px; }
+    .card .desc { font-size: 12px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card:hover{ transform: translateY(-2px) scale(1.005); box-shadow: 0 14px 28px rgba(17,24,39,.12); }
+    .card:hover img{ transform: scale(1.06); }
+    .card:hover .meta{ transform: translateY(-2px); }
+
+    /* ===== Viewer watermark ===== */
+    .wm::after { content: "© Artiqa Gallery"; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 2px, transparent 2px 18px); color: rgba(0,0,0,.12); font-size: 42px; font-weight: 800; letter-spacing:2px; display: grid; place-items: center; mix-blend-mode: multiply; text-align: center; }
+
+    /* ===== Lightbox ===== */
+    .lightbox { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); z-index: 210; }
+    .lightbox.on { display: grid; }
+    .lightbox-inner { position: relative; width: min(92vw, 980px); max-height: 86vh; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+    .lightbox .imgwrap { position: relative; height: min(62vh, 600px); background:#f3f4f6; }
+    .lightbox .imgwrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .lightbox .info { padding: 14px 16px; display: flex; gap: 12px; align-items: center; border-top:1px solid #eee; }
+    .lightbox .info h3 { margin: 0; font-size: 18px; }
+    .lightbox .info p { margin: 0; color: var(--muted); }
+    .lightbox .x { position:absolute; top:10px; right:10px; background:#fff; border:1px solid #e5e7eb; width:36px; height:36px; border-radius:10px; display:grid; place-items:center; cursor:pointer; }
+    .lightbox{ opacity:0; transition: opacity .35s var(--ease); }
+    .lightbox.on{ opacity:1; }
+    .lightbox.on .lightbox-inner{ animation: pop .45s var(--ease) both; }
+    @keyframes pop{ from{ transform: translateY(10px) scale(.985); opacity:.55 } to{ transform:none; opacity:1 } }
+
+    /* ===== Admin panel ===== */
+    .admin-bar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items:center; background: var(--card); border:1px solid var(--glass-stroke); border-radius: 16px; padding: 10px 12px; box-shadow: 0 12px 30px rgba(17,24,39,.12); z-index:55; }
+    .hidden { display: none !important; }
+    .field { display:flex; flex-direction: column; gap:6px; }
+    .field label { font-size: 12px; color: var(--muted); }
+    .input, .textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 10px; background: #fff; }
+    .textarea { min-height: 70px; resize: vertical; }
+    .panel { position: fixed; right: 16px; bottom: 82px; width: min(560px, 96vw); background: var(--card); border: 1px solid var(--glass-stroke); border-radius: 18px; padding: 12px; box-shadow: 0 16px 30px rgba(17,24,39,.1); z-index: 55; }
+    .panel h3 { margin: 6px 6px 10px; }
+    .panel .row { display:grid; grid-template-columns: 1fr; gap: 8px; padding: 6px; }
+    .panel .row-actions { display:flex; gap:8px; justify-content:flex-end; margin-top: 6px; }
+
+    /* ===== Sheets (About / Author / Contact / Halls) ===== */
+    .modal { position: fixed; inset:0; display:none; place-items:center; background: rgba(0,0,0,.35); z-index:220; }
+    .modal.on { display:grid; }
+    .card-lg { width: min(420px, 92vw); background:#fff; border-radius: 16px; border: 1px solid #e5e7eb; padding: 16px; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+
+    .sheet { position: fixed; inset: 0; display:none; place-items:center; background: rgba(0,0,0,.35); z-index: 200; }
+    .sheet.on { display:grid; }
+    .sheet .panel-lg { width: min(900px, 94vw); max-height: 88vh; overflow:auto; background:#fff; border-radius: 18px; border:1px solid #e5e7eb; box-shadow:0 24px 60px rgba(0,0,0,.25); }
+    .sheet header { position: sticky; top:0; background:#fff; border-bottom:1px solid #eee; }
+    .sheet .hd { display:flex; align-items:center; gap:8px; padding:14px 16px; }
+    .sheet .hd h2 { margin:0; font-size:20px; }
+    .sheet .bd { padding:16px; }
+    .chip { display:inline-block; padding:4px 8px; border:1px solid #e5e7eb; border-radius:999px; font-size:12px; margin-right:6px; }
+    .ver { border-left:3px solid #a78bfa; padding-left:12px; margin:12px 0; }
+    .xbtn { margin-left:auto; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:6px 10px; cursor:pointer; }
+    .muted { color: var(--muted); }
+
+    /* ===== Social tiles ===== */
+    .tiles { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:10px; }
+    .tile { display:flex; align-items:center; gap:10px; padding:12px; border-radius:14px; background: var(--tile-bg); border:1px solid #e5e7eb; text-decoration:none; color:#111; box-shadow: 0 4px 14px rgba(17,24,39,.06); transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease); }
+    .tile:hover{ transform: translateY(-2px); box-shadow: 0 10px 20px rgba(17,24,39,.10); background:#fff; }
+    .tile .ico { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; font-size:16px; }
+    .tile .lbl { font-weight:700; }
+
+    /* ===== Halls list ===== */
+    .hall-list { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:12px; }
+    .hall { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; box-shadow:0 6px 16px rgba(17,24,39,.06); display:flex; flex-direction:column; gap:8px; }
+    .hall .hdline { display:flex; align-items:center; gap:8px; }
+    .hall .hdline h4 { margin:0; font-size:16px; }
+    .hall .meta { font-size:12px; color:var(--muted); }
+    .hall .actions { margin-top:auto; display:flex; gap:8px; }
+
+    /* ===== Reveal on scroll ===== */
+    .reveal{ opacity:0; transform: translateY(12px) scale(.98); transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease); }
+    .reveal.in{ opacity:1; transform:none; }
+
+    /* ===== Layering relative to background ===== */
+    header, .hero, .gallery, .admin-bar, .panel { position: relative; z-index: 1; }
+
+    @media (prefers-reduced-motion: reduce){ *{ animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <!-- Soft gradient background -->
+  <div id="bgfx" aria-hidden="true"></div>
+
+  <header>
+    <div class="wrap">
+      <div class="brand"><div class="logo"></div><div>Artiqa Gallery</div><span class="tag" id="roleBadge">游客模式</span></div>
+      <div class="spacer"></div>
+      <nav class="menu" aria-label="主菜单">
+        <span class="indicator" id="menuIndicator"></span>
+        <button class="link active" id="navGallery">画廊</button>
+        <button class="link" id="navHalls">展厅</button>
+        <button class="link" id="navAbout">关于</button>
+        <button class="link" id="navAuthor">作者简介</button>
+        <button class="link" id="navContact">作者联系方式</button>
+      </nav>
+      <div class="spacer"></div>
+      <div class="top-actions">
+        <button class="btn" id="loginBtn">管理员登录</button>
+        <button class="btn hidden" id="logoutBtn">退出管理员</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>用艺术的方式看世界</h1>
+    <p>beta1.4：引入「展厅」概念，将同主题作品归集展示；支持站内创建、编辑与过滤。</p>
+  </section>
+
+  <div class="toolbar" id="toolbar" aria-live="polite">
+    <span class="pill" id="filterPill" style="display:none;">当前展厅：<strong id="filterName"></strong> <button class="btn ghost clearFilter" id="clearFilterBtn">清除</button></span>
+  </div>
+
+  <main class="gallery" id="gallery" aria-live="polite"></main>
+
+  <!-- Lightbox viewer -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true">
+    <div class="lightbox-inner wm">
+      <div class="imgwrap"><img id="lbImg" alt="作品大图"/></div>
+      <button class="x" id="lbClose" aria-label="关闭">✕</button>
+      <div class="info">
+        <div style="flex:1">
+          <h3 id="lbTitle">标题</h3>
+          <p id="lbDesc">介绍</p>
+        </div>
+        <div id="lbAdminActions" class="hidden" style="display:flex; gap:8px;">
+          <button class="btn" id="downloadBtn">下载</button>
+          <button class="btn" id="deleteBtn">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin bar -->
+  <div class="admin-bar hidden" id="adminBar">
+    <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+    <button class="btn primary" id="addBtn">添加作品</button>
+    <button class="btn" id="editBtn">编辑作品信息</button>
+    <button class="btn" id="profileBtn">编辑作者资料</button>
+    <button class="btn" id="hallsBtn">管理展厅</button>
+    <button class="btn" id="backupBtn">导出备份</button>
+    <button class="btn" id="restoreBtn">导入备份</button>
+  </div>
+
+  <!-- Edit artwork panel -->
+  <div class="panel hidden" id="editPanel">
+    <h3>编辑作品信息</h3>
+    <div class="row">
+      <div class="field">
+        <label for="titleInput">标题</label>
+        <input id="titleInput" class="input" placeholder="如：无题 No.7" />
+      </div>
+      <div class="field">
+        <label for="descInput">介绍</label>
+        <textarea id="descInput" class="textarea" placeholder="作品创作背景、媒介与灵感……"></textarea>
+      </div>
+      <div class="row-actions">
+        <button class="btn" id="saveMetaBtn">保存</button>
+        <button class="btn ghost" id="cancelMetaBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit profile panel (author bio & social tiles) -->
+  <div class="panel hidden" id="profilePanel">
+    <h3>编辑作者资料</h3>
+    <div class="row">
+      <div class="field">
+        <label for="bioInput">作者简介</label>
+        <textarea id="bioInput" class="textarea" placeholder="输入作者自我介绍、创作理念与经历"></textarea>
+      </div>
+      <div class="field">
+        <label>社交磁贴</label>
+        <div id="tilesEditor"></div>
+        <div class="row-actions" style="justify-content:flex-start; gap:6px; margin-top:8px;">
+          <button class="btn" id="addTileBtn">新增磁贴</button>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn" id="saveProfileBtn">保存作者资料</button>
+        <button class="btn ghost" id="cancelProfileBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage halls panel -->
+  <div class="panel hidden" id="hallPanel">
+    <h3>管理展厅</h3>
+    <div class="row">
+      <div class="field"><label for="hallTitle">展厅标题</label><input class="input" id="hallTitle" placeholder="例如：『抽象 · 紫罗兰』"></div>
+      <div class="field"><label for="hallDesc">展厅简介</label><textarea class="textarea" id="hallDesc" placeholder="介绍该展厅的主题、灵感与媒介"></textarea></div>
+      <div class="field">
+        <label>选择作品（加入本展厅）</label>
+        <div id="hallItemsPicker" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:8px;"></div>
+      </div>
+      <div class="row-actions">
+        <button class="btn" id="saveHallBtn">保存展厅</button>
+        <button class="btn ghost" id="cancelHallBtn">取消</button>
+        <button class="btn ghost hidden" id="deleteHallBtn">删除展厅</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Halls sheet (list & open) -->
+  <div class="sheet" id="hallsSheet" role="dialog" aria-modal="true">
+    <div class="panel-lg">
+      <header><div class="hd"><h2>展厅</h2><button class="xbtn" id="hallsClose">关闭</button></div></header>
+      <div class="bd">
+        <div class="hall-list" id="hallsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About sheet -->
+  <div class="sheet" id="aboutSheet" role="dialog" aria-modal="true">
+    <div class="panel-lg">
+      <header><div class="hd"><h2>关于 Artiqa</h2><button class="xbtn" id="aboutClose">关闭</button></div></header>
+      <div class="bd">
+        <p class="muted">一个以艺术感为核心的前端画廊模板。此页面为 <b>beta1.4</b> 版本。</p>
+        <h3>版本更新</h3>
+        <div class="ver">
+          <div class="chip">beta1.4 · 2025-10-01</div>
+          <ul>
+            <li>引入「展厅」概念：支持创建/编辑/删除展厅，并把作品归集到展厅。</li>
+            <li>画廊可按展厅过滤浏览；新增展厅列表页。</li>
+          </ul>
+        </div>
+        <div class="ver"><div class="chip">beta1.3 · 2025-10-01</div>
+          <ul><li>社交磁贴 + 站内可编辑作者资料。</li></ul>
+        </div>
+        <div class="ver"><div class="chip">beta1.2 · 2025-10-01</div>
+          <ul><li>柔和渐变背景；菜单指示条与 z-index 修复。</li></ul>
+        </div>
+        <div class="ver"><div class="chip">beta1.1 / 1.0</div>
+          <ul><li>站内关于页、主菜单、游客/管理员功能等。</li></ul>
+        </div>
+        <p class="muted">注意：本模板为纯前端演示。真实项目请接入后端以实现可靠的鉴权与存储。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Author sheet -->
+  <div class="sheet" id="authorSheet" role="dialog" aria-modal="true">
+    <div class="panel-lg">
+      <header><div class="hd"><h2>作者简介</h2><button class="xbtn" id="authorClose">关闭</button></div></header>
+      <div class="bd">
+        <div id="authorBio">这里放置作者的自我介绍、创作理念与获奖经历等内容。你可以在 HTML 中直接编辑此段落，或在后续版本中改为从后端读取。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact sheet -->
+  <div class="sheet" id="contactSheet" role="dialog" aria-modal="true">
+    <div class="panel-lg">
+      <header><div class="hd"><h2>作者联系方式</h2><button class="xbtn" id="contactClose">关闭</button></div></header>
+      <div class="bd">
+        <div class="tiles" id="contactTiles"></div>
+        <p class="muted" style="margin-top:10px">提示：上线时建议用联系表单 + 防垃圾验证，或使用无后端表单服务。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login modal -->
+  <div class="modal" id="loginModal">
+    <div class="card-lg">
+      <h2 style="margin:6px 0 2px">管理员登录</h2>
+      <p class="muted" style="margin-top:0">演示用途：凭证仅在本地校验。实际项目请改为后端认证。</p>
+      <div class="field" style="margin-top:12px">
+        <label for="user">用户名</label>
+        <input id="user" class="input" placeholder="admin" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="pass">密码</label>
+        <input id="pass" class="input" placeholder="••••••" type="password" autocomplete="current-password">
+      </div>
+      <div class="row-actions" style="margin-top:12px">
+        <button class="btn" id="loginConfirm">登录</button>
+        <button class="btn ghost" id="loginCancel">取消</button>
+      </div>
+      <p class="muted" style="font-size:12px; margin-top:10px">默认凭证：<b>admin</b> / <b>art1234</b>（请在源码常量处更改）</p>
+    </div>
+  </div>
+
+  <!-- Card template -->
+  <template id="cardTpl">
+    <article class="card" role="button" tabindex="0" aria-label="打开作品">
+      <img alt="作品缩略图" />
+      <div class="meta">
+        <div class="title"></div>
+        <div class="desc"></div>
+      </div>
+    </article>
+  </template>
+
+  <script>
+    // ===== Constants =====
+    const ADMIN_USER = 'admin';
+    const ADMIN_PASS = 'art1234';
+
+    // ===== Elements =====
+    const els = {
+      gallery: document.getElementById('gallery'),
+      roleBadge: document.getElementById('roleBadge'),
+      loginBtn: document.getElementById('loginBtn'),
+      logoutBtn: document.getElementById('logoutBtn'),
+      adminBar: document.getElementById('adminBar'),
+      addBtn: document.getElementById('addBtn'),
+      fileInput: document.getElementById('fileInput'),
+      editBtn: document.getElementById('editBtn'),
+      editPanel: document.getElementById('editPanel'),
+      titleInput: document.getElementById('titleInput'),
+      descInput: document.getElementById('descInput'),
+      saveMetaBtn: document.getElementById('saveMetaBtn'),
+      cancelMetaBtn: document.getElementById('cancelMetaBtn'),
+      backupBtn: document.getElementById('backupBtn'),
+      restoreBtn: document.getElementById('restoreBtn'),
+      loginModal: document.getElementById('loginModal'),
+      loginConfirm: document.getElementById('loginConfirm'),
+      loginCancel: document.getElementById('loginCancel'),
+      user: document.getElementById('user'),
+      pass: document.getElementById('pass'),
+      lightbox: document.getElementById('lightbox'),
+      lbImg: document.getElementById('lbImg'),
+      lbTitle: document.getElementById('lbTitle'),
+      lbDesc: document.getElementById('lbDesc'),
+      lbClose: document.getElementById('lbClose'),
+      lbAdminActions: document.getElementById('lbAdminActions'),
+      downloadBtn: document.getElementById('downloadBtn'),
+      deleteBtn: document.getElementById('deleteBtn'),
+      cardTpl: document.getElementById('cardTpl'),
+      // nav
+      navGallery: document.getElementById('navGallery'),
+      navHalls: document.getElementById('navHalls'),
+      navAbout: document.getElementById('navAbout'),
+      navAuthor: document.getElementById('navAuthor'),
+      navContact: document.getElementById('navContact'),
+      // sheets
+      hallsSheet: document.getElementById('hallsSheet'),
+      hallsClose: document.getElementById('hallsClose'),
+      hallsList: document.getElementById('hallsList'),
+      aboutSheet: document.getElementById('aboutSheet'),
+      authorSheet: document.getElementById('authorSheet'),
+      contactSheet: document.getElementById('contactSheet'),
+      aboutClose: document.getElementById('aboutClose'),
+      authorClose: document.getElementById('authorClose'),
+      contactClose: document.getElementById('contactClose'),
+      menuIndicator: document.getElementById('menuIndicator'),
+      // profile editing
+      profileBtn: document.getElementById('profileBtn'),
+      profilePanel: document.getElementById('profilePanel'),
+      bioInput: document.getElementById('bioInput'),
+      tilesEditor: document.getElementById('tilesEditor'),
+      addTileBtn: document.getElementById('addTileBtn'),
+      saveProfileBtn: document.getElementById('saveProfileBtn'),
+      cancelProfileBtn: document.getElementById('cancelProfileBtn'),
+      authorBio: document.getElementById('authorBio'),
+      contactTiles: document.getElementById('contactTiles'),
+      // halls management
+      hallsBtn: document.getElementById('hallsBtn'),
+      hallPanel: document.getElementById('hallPanel'),
+      hallTitle: document.getElementById('hallTitle'),
+      hallDesc: document.getElementById('hallDesc'),
+      hallItemsPicker: document.getElementById('hallItemsPicker'),
+      saveHallBtn: document.getElementById('saveHallBtn'),
+      cancelHallBtn: document.getElementById('cancelHallBtn'),
+      deleteHallBtn: document.getElementById('deleteHallBtn'),
+      // filter UI
+      filterPill: document.getElementById('filterPill'),
+      filterName: document.getElementById('filterName'),
+      clearFilterBtn: document.getElementById('clearFilterBtn')
+    };
+
+    // ===== State =====
+    let isAdmin = false;
+    let items = loadItems();
+    let currentIdx = -1;
+    let io = null;
+    let currentHallId = null; // gallery filter
+
+    // ===== Profile =====
+    function defaultProfile(){
+      return { bio: '这里放置作者的自我介绍、创作理念与获奖经历等内容。', tiles: [
+        { label: 'Email', url: 'mailto:artist@example.com', color: '#fee2e2', text: '#991b1b', emoji: '✉️' },
+        { label: 'Instagram', url: '#', color: '#e9d5ff', text: '#6d28d9', emoji: '📸' },
+        { label: '微博 / 小红书', url: '#', color: '#dbeafe', text: '#1d4ed8', emoji: '📕' }
+      ]};
+    }
+    function loadProfile(){ const raw = localStorage.getItem('artiqa_profile'); if(!raw){ const p=defaultProfile(); saveProfile(p); return p; } try{ const p=JSON.parse(raw); if(!Array.isArray(p.tiles)) p.tiles=[]; return p; }catch{ const p=defaultProfile(); saveProfile(p); return p; } }
+    function saveProfile(p){ localStorage.setItem('artiqa_profile', JSON.stringify(p)); }
+    let profile = loadProfile();
+
+    // ===== Halls =====
+    function loadHalls(){ const raw = localStorage.getItem('artiqa_halls'); if(!raw) return []; try{ const h=JSON.parse(raw); return Array.isArray(h)?h:[]; }catch{ return []; } }
+    function saveHalls(h){ localStorage.setItem('artiqa_halls', JSON.stringify(h)); }
+    let halls = loadHalls();
+    function newHall(){ return { id: crypto.randomUUID(), title: '', desc: '', itemIds: [] }; }
+
+    // ===== Data (artworks) =====
+    function loadItems(){ const raw = localStorage.getItem('artiqa_items'); if (raw) { try { return JSON.parse(raw); } catch(e){} } const seed = [ mkSeed('晨雾中的松林','宣纸 / 水墨','Misty Pines'), mkSeed('静物·金属罐','油画 / 写实','Still Life'), mkSeed('紫罗兰 No.3','丙烯 / 抽象','Violet Abstraction') ]; saveItems(seed); return seed; }
+    function saveItems(arr){ localStorage.setItem('artiqa_items', JSON.stringify(arr)); }
+    function mkSeed(title, desc, label){ const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'> <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='#a78bfa'/><stop offset='50%' stop-color='#60a5fa'/><stop offset='100%' stop-color='#f472b6'/></linearGradient></defs><rect width='100%' height='100%' fill='url(#g)'/><g font-family='Georgia, serif' fill='rgba(255,255,255,.95)'><text x='50%' y='45%' font-size='64' font-weight='700' text-anchor='middle'>${title}</text><text x='50%' y='58%' font-size='28' text-anchor='middle'>${label}</text></g></svg>`; return { id: crypto.randomUUID(), title, desc, dataURL: 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))), date: Date.now() }; }
+
+    // ===== Render gallery (with hall filter) =====
+    function ensureObserver(){ if (io) return; io = new IntersectionObserver((entries)=>{ for(const ent of entries){ if(ent.isIntersecting) ent.target.classList.add('in'); } }, { threshold: .12 }); }
+    function render(){
+      els.gallery.innerHTML = '';
+      ensureObserver();
+      const data = currentHallId ? items.filter(it=> (halls.find(h=>h.id===currentHallId)?.itemIds || []).includes(it.id)) : items;
+      if(currentHallId){ const hall=halls.find(h=>h.id===currentHallId); els.filterName.textContent = hall? hall.title : '未知展厅'; els.filterPill.style.display='inline-flex'; } else { els.filterPill.style.display='none'; }
+      data.forEach((it, idxAll) => {
+        const idx = items.findIndex(x=>x.id===it.id);
+        const node = els.cardTpl.content.firstElementChild.cloneNode(true);
+        node.classList.add('reveal');
+        node.querySelector('img').src = it.dataURL;
+        node.querySelector('.title').textContent = it.title || '无题';
+        node.querySelector('.desc').textContent = it.desc || '';
+        node.addEventListener('click', () => openLightbox(idx));
+        node.addEventListener('keyup', (e) => { if (e.key === 'Enter') openLightbox(idx); });
+        els.gallery.appendChild(node); io.observe(node);
+      });
+      if (data.length===0){
+        const emp = document.createElement('div'); emp.className='muted'; emp.style.cssText='text-align:center; grid-column:1/-1; padding:20px;';
+        emp.textContent='该展厅暂无作品。'; els.gallery.appendChild(emp);
+      }
+    }
+
+    // ===== Render halls list =====
+    function renderHallsList(){
+      els.hallsList.innerHTML='';
+      if(halls.length===0){ els.hallsList.innerHTML='<div class="muted">尚未创建任何展厅（管理员可点击“管理展厅”创建）。</div>'; return; }
+      halls.forEach(h=>{
+        const c = document.createElement('div'); c.className='hall';
+        const count = (h.itemIds||[]).length;
+        c.innerHTML = `<div class="hdline"><h4>${h.title||'未命名展厅'}</h4><span class="chip">${count} 件作品</span></div><div class="muted">${h.desc||''}</div><div class="actions"><button class="btn" data-open>进入展厅</button><button class="btn ghost" data-edit>编辑</button></div>`;
+        c.querySelector('[data-open]').addEventListener('click', ()=>{ currentHallId=h.id; closeSheet(els.hallsSheet); setActive(els.navGallery); moveIndicator(els.navGallery); render(); window.scrollTo({top:0,behavior:'smooth'}); });
+        c.querySelector('[data-edit]').addEventListener('click', ()=> openHallEditor(h.id));
+        els.hallsList.appendChild(c);
+      });
+    }
+
+    // ===== Hall editor =====
+    let editingHallId = null;
+    function openHallEditor(id=null){
+      editingHallId = id;
+      let h = id ? halls.find(x=>x.id===id) : newHall();
+      if(!h){ h=newHall(); editingHallId=null; }
+      els.hallTitle.value = h.title||'';
+      els.hallDesc.value = h.desc||'';
+      els.deleteHallBtn.classList.toggle('hidden', !id);
+      renderHallItemsPicker(h.itemIds||[]);
+      els.hallPanel.classList.remove('hidden');
+    }
+    function renderHallItemsPicker(selectedIds){
+      els.hallItemsPicker.innerHTML='';
+      items.forEach(it=>{
+        const id = it.id; const checked = selectedIds.includes(id);
+        const cell = document.createElement('label');
+        cell.style.cssText='display:flex; gap:8px; align-items:center; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:8px; cursor:pointer;';
+        cell.innerHTML = `<input type="checkbox" ${checked?'checked':''} data-id="${id}"><img src="${it.dataURL}" alt="thumb" style="width:48px;height:48px;object-fit:cover;border-radius:8px;"> <span style="font-size:12px;">${it.title||'无题'}</span>`;
+        els.hallItemsPicker.appendChild(cell);
+      });
+    }
+    function collectSelectedIds(){ return Array.from(els.hallItemsPicker.querySelectorAll('input[type="checkbox"]:checked')).map(x=>x.getAttribute('data-id')); }
+
+    els.hallsBtn.addEventListener('click', ()=> openHallEditor(null));
+    els.saveHallBtn.addEventListener('click', ()=>{
+      const title = els.hallTitle.value.trim();
+      const desc = els.hallDesc.value.trim();
+      const itemIds = collectSelectedIds();
+      if(!title){ alert('展厅标题不能为空'); return; }
+      if(editingHallId){
+        const idx = halls.findIndex(h=>h.id===editingHallId); if(idx>=0){ halls[idx].title=title; halls[idx].desc=desc; halls[idx].itemIds=itemIds; }
+      } else {
+        halls.push({ id: crypto.randomUUID(), title, desc, itemIds });
+      }
+      saveHalls(halls); els.hallPanel.classList.add('hidden'); renderHallsList(); render();
+    });
+    els.cancelHallBtn.addEventListener('click', ()=> els.hallPanel.classList.add('hidden'));
+    els.deleteHallBtn.addEventListener('click', ()=>{
+      if(!editingHallId) return; if(!confirm('确定删除该展厅？')) return;
+      halls = halls.filter(h=>h.id!==editingHallId); saveHalls(halls); els.hallPanel.classList.add('hidden'); renderHallsList(); if(currentHallId===editingHallId){ currentHallId=null; render(); }
+    });
+
+    // ===== Lightbox =====
+    function openLightbox(idx){ currentIdx = idx; const it = items[idx]; els.lbImg.src = it.dataURL; els.lbTitle.textContent = it.title || '无题'; els.lbDesc.textContent = it.desc || ''; els.lbAdminActions.classList.toggle('hidden', !isAdmin); els.lightbox.classList.add('on'); }
+    function closeLightbox(){ els.lightbox.classList.remove('on'); }
+    els.lbClose.addEventListener('click', closeLightbox);
+    els.lightbox.addEventListener('click', (e)=>{ if(e.target===els.lightbox) closeLightbox(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeLightbox(); });
+
+    // ===== Admin actions (artworks) =====
+    els.downloadBtn.addEventListener('click', () => { if (!isAdmin || currentIdx<0) return; const it = items[currentIdx]; const a = document.createElement('a'); a.href = it.dataURL; a.download = (it.title || 'artwork') + '.png'; document.body.appendChild(a); a.click(); a.remove(); });
+    els.deleteBtn.addEventListener('click', () => { if (!isAdmin || currentIdx<0) return; if (!confirm('确定删除该作品吗？')) return; const removedId = items[currentIdx].id; items.splice(currentIdx,1); saveItems(items); // 同步从展厅移除
+      halls.forEach(h=> h.itemIds = (h.itemIds||[]).filter(id=>id!==removedId)); saveHalls(halls); renderHallsList(); render(); closeLightbox(); });
+
+    els.editBtn.addEventListener('click', () => { if (currentIdx<0) { alert('请先在画廊中打开一幅作品再编辑。'); return; } const it = items[currentIdx]; els.titleInput.value = it.title || ''; els.descInput.value = it.desc || ''; els.editPanel.classList.remove('hidden'); });
+    els.cancelMetaBtn.addEventListener('click', () => els.editPanel.classList.add('hidden'));
+    els.saveMetaBtn.addEventListener('click', () => { if (currentIdx<0) return; items[currentIdx].title = els.titleInput.value.trim(); items[currentIdx].desc = els.descInput.value.trim(); saveItems(items); render(); els.lbTitle.textContent = items[currentIdx].title || '无题'; els.lbDesc.textContent = items[currentIdx].desc || ''; els.editPanel.classList.add('hidden'); });
+
+    els.addBtn.addEventListener('click', () => els.fileInput.click());
+    els.fileInput.addEventListener('change', async (e) => { const files = Array.from(e.target.files || []); for (const f of files) { if (!f.type.startsWith('image/')) continue; const dataURL = await fileToDataURL(f); items.unshift({ id: crypto.randomUUID(), title: f.name.replace(/\.[^.]+$/, ''), desc: '', dataURL, date: Date.now() }); } saveItems(items); renderHallItemsPicker(collectSelectedIds()); render(); e.target.value = ''; });
+    function fileToDataURL(file){ return new Promise((resolve,reject)=>{ const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); }); }
+
+    // ===== Admin actions (profile) =====
+    function tileRow(t, idx){ const wrap = document.createElement('div'); wrap.setAttribute('data-row', idx); wrap.style.cssText = 'display:grid; grid-template-columns: 1.2fr 2fr 120px 120px 70px auto; gap:8px; align-items:end; margin:8px 0;'; wrap.innerHTML = ` <div class="field"><label>名称</label><input class="input" data-k="label" value="${t.label||''}"></div> <div class="field"><label>链接</label><input class="input" data-k="url" value="${t.url||''}" placeholder="https:// 或 mailto:"></div> <div class="field"><label>背景色</label><input class="input" data-k="color" value="${t.color||'#eef2ff'}" placeholder="#e5e7eb"></div> <div class="field"><label>文字色</label><input class="input" data-k="text" value="${t.text||'#1f2937'}" placeholder="#111827"></div> <div class="field"><label>表情</label><input class="input" data-k="emoji" value="${t.emoji||'🔗'}" placeholder="🔗"></div> <button class="btn ghost" data-del>删除</button>`; wrap.querySelector('[data-del]').addEventListener('click', ()=>{ profile.tiles.splice(idx,1); renderTilesEditor(); }); return wrap; }
+    function renderTilesEditor(){ els.tilesEditor.innerHTML=''; (profile.tiles||[]).forEach((t,i)=> els.tilesEditor.appendChild(tileRow(t,i))); if((profile.tiles||[]).length===0){ els.tilesEditor.innerHTML = '<div class="muted">暂无磁贴，点击“新增磁贴”添加。</div>'; } }
+
+    els.profileBtn.addEventListener('click', ()=>{ els.bioInput.value = profile.bio || ''; renderTilesEditor(); els.profilePanel.classList.remove('hidden'); });
+    els.cancelProfileBtn.addEventListener('click', ()=> els.profilePanel.classList.add('hidden'));
+    els.addTileBtn.addEventListener('click', ()=>{ (profile.tiles ||= []).push({label:'新磁贴', url:'#', color:'#eef2ff', text:'#1f2937', emoji:'🔗'}); renderTilesEditor(); });
+    els.saveProfileBtn.addEventListener('click', ()=>{ profile.bio = els.bioInput.value.trim(); const rows = els.tilesEditor.querySelectorAll('[data-row]'); const next = []; rows.forEach(r=>{ const label = r.querySelector('[data-k="label"]').value.trim(); const url = r.querySelector('[data-k="url"]').value.trim(); const color = r.querySelector('[data-k="color"]').value.trim() || '#eef2ff'; const text = r.querySelector('[data-k="text"]').value.trim() || '#1f2937'; const emoji = r.querySelector('[data-k="emoji"]').value.trim() || '🔗'; if(label && url) next.push({label,url,color,text,emoji}); }); profile.tiles = next; saveProfile(profile); renderAuthor(); renderTiles(); els.profilePanel.classList.add('hidden'); });
+
+    function renderAuthor(){ els.authorBio.textContent = profile.bio || ''; }
+    function renderTiles(){ els.contactTiles.innerHTML = ''; (profile.tiles||[]).forEach((t)=>{ const a = document.createElement('a'); a.className='tile'; a.href=t.url||'#'; a.target=(t.url||'').startsWith('mailto:')?'_self':'_blank'; a.rel='noopener'; a.innerHTML = `<div class="ico" style="background:${t.color||'#eef2ff'}; color:${t.text||'#1f2937'}">${t.emoji||'🔗'}</div><div><div class="lbl">${t.label||'链接'}</div><div class="muted" style="font-size:12px;">${(t.url||'').replace(/^mailto:/,'')}</div></div>`; els.contactTiles.appendChild(a); }); }
+
+    // ===== Auth =====
+    function setRole(admin){ isAdmin = !!admin; els.roleBadge.textContent = admin ? '管理员模式' : '游客模式'; els.loginBtn.classList.toggle('hidden', admin); els.logoutBtn.classList.toggle('hidden', !admin); els.adminBar.classList.toggle('hidden', !admin); if (!admin) { document.body.style.userSelect = 'none'; document.addEventListener('contextmenu', blockCtx, {capture:true}); document.addEventListener('dragstart', blockEvt, {capture:true}); } else { document.body.style.userSelect = 'auto'; document.removeEventListener('contextmenu', blockCtx, {capture:true}); document.removeEventListener('dragstart', blockEvt, {capture:true}); } }
+    function blockCtx(e){ e.preventDefault(); }
+    function blockEvt(e){ e.preventDefault(); }
+
+    els.loginBtn.addEventListener('click', () => { els.loginModal.classList.add('on'); setTimeout(()=>els.user.focus(), 50); });
+    els.loginCancel.addEventListener('click', () => els.loginModal.classList.remove('on'));
+    els.loginConfirm.addEventListener('click', doLogin);
+    els.pass.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+    function doLogin(){ const u = els.user.value.trim(); const p = els.pass.value; if (u===ADMIN_USER && p===ADMIN_PASS){ els.loginModal.classList.remove('on'); setRole(true); els.user.value=''; els.pass.value=''; } else { alert('用户名或密码不正确'); } }
+    els.logoutBtn.addEventListener('click', () => setRole(false));
+
+    // ===== Sheets nav =====
+    function openSheet(el){ el.classList.add('on'); }
+    function closeSheet(el){ el.classList.remove('on'); }
+    els.navGallery.addEventListener('click', ()=>{ currentHallId=null; document.documentElement.scrollTo({top:0, behavior:'smooth'}); setActive(els.navGallery); moveIndicator(els.navGallery); render(); });
+    els.navHalls.addEventListener('click', ()=>{ renderHallsList(); openSheet(els.hallsSheet); setActive(els.navHalls); moveIndicator(els.navHalls); });
+    els.navAbout.addEventListener('click', ()=>{ openSheet(els.aboutSheet); setActive(els.navAbout); moveIndicator(els.navAbout); });
+    els.navAuthor.addEventListener('click', ()=>{ openSheet(els.authorSheet); setActive(els.navAuthor); moveIndicator(els.navAuthor); });
+    els.navContact.addEventListener('click', ()=>{ openSheet(els.contactSheet); setActive(els.navContact); moveIndicator(els.navContact); });
+
+    els.hallsClose.addEventListener('click', ()=> closeSheet(els.hallsSheet));
+    els.aboutClose.addEventListener('click', ()=> closeSheet(els.aboutSheet));
+    els.authorClose.addEventListener('click', ()=> closeSheet(els.authorSheet));
+    els.contactClose.addEventListener('click', ()=> closeSheet(els.contactSheet));
+    ;[els.hallsSheet, els.aboutSheet, els.authorSheet, els.contactSheet].forEach(s=>{ s.addEventListener('click', (e)=>{ if(e.target===s) closeSheet(s); }); });
+
+    els.clearFilterBtn.addEventListener('click', ()=>{ currentHallId=null; render(); });
+
+    function setActive(btn){ [els.navGallery, els.navHalls, els.navAbout, els.navAuthor, els.navContact].forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+    function moveIndicator(el){
+      const w = Math.max(28, el.offsetWidth * 0.6);
+      const x = el.offsetLeft + (el.offsetWidth - w)/2;
+      els.menuIndicator.style.width = w + 'px';
+      els.menuIndicator.style.transform = `translateX(${x}px)`;
+    }
+
+    // ===== Init =====
+    window.addEventListener('DOMContentLoaded', ()=>{
+      render();
+      renderAuthor();
+      renderTiles();
+      setRole(false);
+      moveIndicator(els.navGallery);
+      // basic self-checks
+      try{
+        console.group('%cArtiqa beta1.4 self-test','color:#7c3aed;font-weight:bold');
+        console.assert(els.gallery.childElementCount>=1, '应渲染至少1张作品卡片');
+        // halls list rendering (empty acceptable)
+        renderHallsList();
+        console.assert(els.hallsList instanceof HTMLElement, '展厅列表容器存在');
+        // indicator
+        const t0 = getComputedStyle(els.menuIndicator).transform; els.navHalls.click(); const t1 = getComputedStyle(els.menuIndicator).transform; console.assert(t0!==t1, '点击菜单指示条应移动');
+        // z-index layering
+        const ziHeader = parseInt(getComputedStyle(document.querySelector('header')).zIndex)||0;
+        const ziSheet = parseInt(getComputedStyle(els.hallsSheet).zIndex)||0;
+        const ziLightbox = parseInt(getComputedStyle(els.lightbox).zIndex)||0;
+        console.assert(ziSheet>ziHeader && ziLightbox>ziHeader, '弹层遮罩 z-index 正确');
+        console.groupEnd();
+      }catch(e){ console.warn('self-test skipped:', e); }
+    });
+
+    window.addEventListener('resize', ()=>{
+      const active = document.querySelector('.menu .link.active') || els.navGallery;
+      moveIndicator(active);
+    });
+
+  </script>
+</body>
+</html>
