@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Artiqa — 艺术画廊（游客 / 管理员） · beta1.6</title>
+<style>
+/* ===== Base & Themes ===== */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+:root{
+  --ink:#161616; --muted:#6b7280; --accent:#7c3aed;
+  --glass: rgba(255,255,255,.55); --glass-stroke: rgba(0,0,0,.06);
+  --card: rgba(255,255,255,.84); --bg:#f9fafb; --tile-bg:#ffffffaa;
+  --ease:cubic-bezier(.22,.61,.36,1); --dur:.8s; --ring:0 0 0 3px rgba(124,58,237,.25);
+}
+:root[data-theme="dark"]{
+  --ink:#e5e7eb; --muted:#9ca3af; --accent:#a78bfa;
+  --glass: rgba(30,30,36,.55); --glass-stroke: rgba(255,255,255,.08);
+  --card: rgba(28,28,34,.9); --bg:#0b0b10; --tile-bg:#1e1e26aa;
+}
+body{
+  margin:0; font-family: ui-serif, Georgia, "Times New Roman", serif;
+  color: var(--ink); background: var(--bg);
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* ===== Background ===== */
+#bgfx{ position:fixed; inset:0; z-index:0; pointer-events:none;
+  background: linear-gradient(-45deg,#a78bfa,#60a5fa,#f472b6,#fcd34d);
+  background-size:400% 400%; animation: gradientShift 25s ease infinite;
+  filter: saturate(1.05) brightness(1.02);
+  mix-blend-mode: normal;
+}
+:root[data-theme="dark"] #bgfx{ opacity:.35; }
+@keyframes gradientShift{
+  0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%}
+}
+
+/* ===== Header ===== */
+header{
+  position: sticky; top:0; z-index:50;
+  backdrop-filter: blur(10px) saturate(1.2);
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.6));
+  border-bottom:1px solid var(--glass-stroke);
+}
+:root[data-theme="dark"] header{
+  background: linear-gradient(180deg, rgba(24,24,30,.85), rgba(24,24,30,.6));
+}
+.wrap{ max-width:1100px; margin:0 auto; padding:12px 14px; display:flex; align-items:center; gap:10px; }
+.brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.4px; }
+.brand .logo{ width:26px; height:26px; border-radius:8px;
+  background: conic-gradient(from 30deg,#c084fc,#60a5fa,#f472b6,#c084fc);
+  box-shadow: 0 3px 10px rgba(124,58,237,.25) inset;
+}
+.tag{ font-size:12px; padding:4px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+:root[data-theme="dark"] .tag{ background:#1f2937; color:#c7d2fe; border-color:#374151; }
+.spacer{ flex:1; }
+
+.menu{ position:relative; display:flex; gap:8px; align-items:center; margin-left:8px; overflow:auto; }
+.menu::-webkit-scrollbar{ display:none; }
+.menu .indicator{ position:absolute; bottom:-3px; height:2px; width:28px;
+  background: linear-gradient(90deg,#a78bfa,#7c3aed); border-radius:2px; left:0;
+  transition: transform .45s var(--ease), width .45s var(--ease);
+}
+.link{ appearance:none; border:none; background:transparent; font-weight:600; color:#374151; cursor:pointer;
+  padding:8px 10px; border-radius:10px; white-space:nowrap;
+}
+.link:hover{ background:rgba(124,58,237,.08); }
+.link.active{ color:var(--accent); }
+:root[data-theme="dark"] .link{ color:#d1d5db; }
+:root[data-theme="dark"] .link:hover{ background:rgba(167,139,250,.12); }
+
+.btn{ appearance:none; border:1px solid var(--glass-stroke); background:var(--card);
+  padding:8px 12px; border-radius:12px; font-weight:600; cursor:pointer;
+  transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease);
+  color: var(--ink);
+}
+.btn:hover{ transform: translateY(-1px); box-shadow:0 10px 18px rgba(17,24,39,.10); }
+:root[data-theme="dark"] .btn:hover{ box-shadow:0 10px 18px rgba(0,0,0,.35); }
+.btn:focus-visible{ outline:none; box-shadow: var(--ring); }
+.btn.primary{ background: linear-gradient(180deg,#a78bfa,#7c3aed); color:#fff; border:none; }
+.btn.ghost{ background: transparent; }
+
+/* ===== Hero ===== */
+.hero{ max-width:1100px; margin: 16px auto 6px; padding: 0 14px; position:relative; z-index:1; }
+.hero h1{ margin:0 0 4px; font-size: clamp(24px, 4.5vw, 40px); line-height:1.1; letter-spacing:.3px; }
+.hero p{ margin:6px 0 0; color:var(--muted); }
+
+/* ===== Toolbar ===== */
+.toolbar{
+  position: sticky; top: 58px; z-index:45;
+  max-width:1100px; margin:0 auto; padding:8px 14px; display:flex; gap:8px; align-items:center; color:var(--muted);
+  backdrop-filter: blur(6px); background: rgba(255,255,255,.55); border-bottom:1px solid rgba(0,0,0,.05);
+}
+:root[data-theme="dark"] .toolbar{ background: rgba(24,24,30,.55); border-color: rgba(255,255,255,.06); }
+
+.pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; font-size:12px; color:#111; }
+:root[data-theme="dark"] .pill{ background:#15151b; border-color:#2a2a33; color:#d1d5db; }
+.pill strong{ color:inherit; }
+.clearFilter{ margin-left:auto; }
+
+.search{ flex:1; display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e5e7eb; border-radius:999px; padding:6px 10px; }
+:root[data-theme="dark"] .search{ background:#15151b; border-color:#2a2a33; }
+.search input{ appearance:none; border:none; background:transparent; width:100%; font-size:14px; outline:none; color:var(--ink); }
+kbd{
+  font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  background:#f3f4f6; border:1px solid #e5e7eb; border-bottom-width:2px; border-radius:6px; padding:1px 5px; font-size:12px; color:#111;
+}
+:root[data-theme="dark"] kbd{ background:#111827; border-color:#374151; color:#e5e7eb; }
+.count{ font-size:12px; margin-left:6px; }
+
+/* Sort & fav */
+.select{ appearance:none; border:1px solid #e5e7eb; background:#fff; color:#111; border-radius:999px; padding:6px 12px; font-weight:600; }
+:root[data-theme="dark"] .select{ background:#15151b; border-color:#2a2a33; color:#e5e7eb; }
+.tgl{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #e5e7eb; border-radius:999px; background:#fff; font-size:12px; cursor:pointer; }
+:root[data-theme="dark"] .tgl{ background:#15151b; border-color:#2a2a33; color:#e5e7eb; }
+.tgl input{ margin-right:4px; }
+
+/* ===== Gallery ===== */
+.gallery{
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:12px;
+  padding: 14px; max-width:1100px; margin: 0 auto 14px; position:relative; z-index:1;
+}
+@media(min-width:520px){ .gallery{ grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap:14px; padding:16px; } }
+@media(min-width:900px){ .gallery{ grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap:16px; padding:22px; } }
+
+.card{
+  position:relative; overflow:hidden; border-radius:16px; background: var(--glass); border:1px solid var(--glass-stroke);
+  box-shadow:0 10px 30px rgba(17,24,39,.06); cursor: zoom-in; isolation:isolate;
+  transition: transform .45s var(--ease), box-shadow .45s var(--ease);
+  opacity:0; transform: translateY(14px) scale(.985);
+  animation: cardIn .7s var(--ease) forwards; animation-delay: calc(var(--i,0) * 40ms);
+}
+@keyframes cardIn{ from{opacity:0; transform:translateY(14px) scale(.985)} to{opacity:1; transform:none} }
+
+.card img{ width:100%; aspect-ratio:4/3; object-fit:cover; display:block; pointer-events:none; transform:scale(1.02); transition: transform .6s var(--ease); }
+.card .meta{ position:absolute; inset:auto 0 0 0; padding:10px 12px; color:#111; backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.92)); transition: transform .45s var(--ease);
+}
+:root[data-theme="dark"] .card .meta{ color:#e5e7eb; background: linear-gradient(180deg, rgba(0,0,0,0), rgba(20,20,26,.92)); }
+.card .title{ font-weight:700; font-size:14px; }
+.card .desc{ font-size:12px; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+:root[data-theme="dark"] .card .desc{ color:#9ca3af; }
+
+.card:hover{ transform: translateY(-2px) scale(1.005); box-shadow: 0 14px 28px rgba(17,24,39,.12); }
+:root[data-theme="dark"] .card:hover{ box-shadow: 0 14px 28px rgba(0,0,0,.35); }
+.card:hover img{ transform: scale(1.06); }
+.card:hover .meta{ transform: translateY(-2px); }
+
+/* Fav button */
+.fav{
+  position:absolute; top:8px; right:8px; z-index:2; border:none; border-radius:999px; width:34px; height:34px;
+  display:grid; place-items:center; cursor:pointer; background: rgba(255,255,255,.8); box-shadow:0 4px 10px rgba(0,0,0,.15);
+}
+:root[data-theme="dark"] .fav{ background: rgba(20,20,26,.85); }
+.fav span{ pointer-events:none; }
+.fav[data-on="1"] span{ filter: saturate(1.2); }
+
+mark{ background:#fde68a; color:inherit; padding:0 2px; border-radius:3px; }
+
+/* ===== Lightbox ===== */
+.lightbox{ position:fixed; inset:0; display:none; place-items:center; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); z-index:210; opacity:0; transition: opacity .35s var(--ease); }
+.lightbox.on{ display:grid; opacity:1; }
+.lightbox-inner{ position:relative; width: min(94vw, 1000px); max-height: 86vh; background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.25); animation: pop .45s var(--ease) both; color:#111; }
+:root[data-theme="dark"] .lightbox-inner{ background:#14141a; color:#e5e7eb; }
+@keyframes pop{ from{ transform: translateY(10px) scale(.985); opacity:.55 } to{ transform:none; opacity:1 } }
+
+.lightbox .imgwrap{ position:relative; height: min(62vh, 640px); background:#f3f4f6; touch-action: pan-y; }
+:root[data-theme="dark"] .lightbox .imgwrap{ background:#0f1013; }
+.lightbox .imgwrap img{ width:100%; height:100%; object-fit:contain; display:block; }
+.lightbox .info{ padding: 12px 14px; display:flex; gap:10px; align-items:center; border-top:1px solid #eee; }
+:root[data-theme="dark"] .lightbox .info{ border-color:#262631; }
+.lightbox .info h3{ margin:0; font-size:18px; }
+.lightbox .info p{ margin:0; color:#374151; }
+:root[data-theme="dark"] .lightbox .info p{ color:#9ca3af; }
+.lightbox .x{ position:absolute; top:10px; right:10px; background:#fff; border:1px solid #e5e7eb; width:36px; height:36px; border-radius:10px; display:grid; place-items:center; cursor:pointer; }
+:root[data-theme="dark"] .lightbox .x{ background:#1b1b22; border-color:#2a2a33; color:#e5e7eb; }
+
+.wm::after{
+  content:"© Artiqa Gallery"; position:absolute; inset:0; pointer-events:none;
+  background: repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 2px, transparent 2px 18px);
+  color: rgba(0,0,0,.12); font-size:42px; font-weight:800; letter-spacing:2px; display:grid; place-items:center; mix-blend-mode:multiply; text-align:center;
+}
+
+/* ===== Admin & Panels ===== */
+.admin-bar{ position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+  display:flex; gap:10px; align-items:center; background:var(--card); border:1px solid var(--glass-stroke); border-radius:16px; padding:10px 12px;
+  box-shadow:0 12px 30px rgba(17,24,39,.12); z-index:55; color:var(--ink);
+}
+.hidden{ display:none !important; }
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field label{ font-size:12px; color:var(--muted); }
+.input,.textarea{ width:100%; border:1px solid #e5e7eb; border-radius:12px; padding:8px 10px; background:#fff; color:#111; }
+.textarea{ min-height:70px; resize:vertical; }
+:root[data-theme="dark"] .input, :root[data-theme="dark"] .textarea{ background:#15151b; border-color:#2a2a33; color:#e5e7eb; }
+
+.panel{ position:fixed; right:16px; bottom:82px; width:min(560px,96vw); background:var(--card); border:1px solid var(--glass-stroke); border-radius:18px; padding:12px; box-shadow:0 16px 30px rgba(17,24,39,.1); z-index:55; color:var(--ink);}
+.panel h3{ margin:6px 6px 10px; }
+.panel .row{ display:grid; grid-template-columns: 1fr; gap:8px; padding:6px; }
+.panel .row-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+
+/* ===== Sheets ===== */
+.modal{ position:fixed; inset:0; display:none; place-items:center; background: rgba(0,0,0,.35); z-index:220; }
+.modal.on{ display:grid; }
+.card-lg{ width:min(420px,92vw); background:#fff; border-radius:16px; border:1px solid #e5e7eb; padding:16px; box-shadow:0 20px 50px rgba(0,0,0,.2); color:#111; }
+:root[data-theme="dark"] .card-lg{ background:#1b1b22; border-color:#2a2a33; color:#e5e7eb; }
+
+.sheet{ position:fixed; inset:0; display:none; place-items:center; background: rgba(0,0,0,.35); z-index:200; opacity:0; transition: opacity .3s var(--ease); }
+.sheet.on{ display:grid; opacity:1; }
+.sheet .panel-lg{ width:min(900px,94vw); max-height:88vh; overflow:auto; background:#fff; border-radius:18px; border:1px solid #e5e7eb; box-shadow:0 24px 60px rgba(0,0,0,.25); color:#111; }
+:root[data-theme="dark"] .sheet .panel-lg{ background:#14141a; border-color:#2a2a33; color:#e5e7eb; }
+.sheet header{ position:sticky; top:0; background:inherit; border-bottom:1px solid #eee; }
+:root[data-theme="dark"] .sheet header{ border-color:#262631; }
+.sheet .hd{ display:flex; align-items:center; gap:8px; padding:14px 16px; }
+.sheet .hd h2{ margin:0; font-size:20px; }
+.sheet .bd{ padding:16px; }
+.chip{ display:inline-block; padding:4px 8px; border:1px solid #e5e7eb; border-radius:999px; font-size:12px; margin-right:6px; }
+:root[data-theme="dark"] .chip{ border-color:#2a2a33; color:#e5e7eb; }
+.ver{ border-left:3px solid #a78bfa; padding-left:12px; margin:12px 0; }
+.xbtn{ margin-left:auto; background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:6px 10px; cursor:pointer; color:#111; }
+:root[data-theme="dark"] .xbtn{ background:#1b1b22; border-color:#2a2a33; color:#e5e7eb; }
+
+.tiles{ display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:12px; margin-top:10px; }
+.tile{ display:flex; align-items:center; gap:10px; padding:12px; border-radius:14px; background: var(--tile-bg); border:1px solid #e5e7eb; text-decoration:none; color:inherit;
+  box-shadow: 0 4px 14px rgba(17,24,39,.06); transition: transform .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease);
+}
+:root[data-theme="dark"] .tile{ border-color:#2a2a33; box-shadow:none; }
+.tile:hover{ transform: translateY(-2px); box-shadow: 0 10px 20px rgba(17,24,39,.10); background:#fff; }
+:root[data-theme="dark"] .tile:hover{ background:#1b1b22; box-shadow:0 10px 20px rgba(0,0,0,.35); }
+.tile .ico{ width:28px; height:28px; border-radius:8px; display:grid; place-items:center; font-size:16px; }
+.tile .lbl{ font-weight:700; }
+
+.hall-list{ display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:12px; }
+.hall{ background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; box-shadow:0 6px 16px rgba(17,24,39,.06); display:flex; flex-direction:column; gap:8px; color:#111;}
+:root[data-theme="dark"] .hall{ background:#1b1b22; border-color:#2a2a33; color:#e5e7eb; box-shadow:none; }
+.hall .hdline{ display:flex; align-items:center; gap:8px; }
+.hall .hdline h4{ margin:0; font-size:16px; }
+.hall .meta{ font-size:12px; color:var(--muted); }
+.hall .actions{ margin-top:auto; display:flex; gap:8px; }
+
+/* ===== Motion Pref ===== */
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition: none !important; }
+  .sheet, .lightbox{ opacity:1 !important; }
+  .card{ opacity:1 !important; transform:none !important; }
+}
+
+/* Layering */
+header,.hero,.gallery,.admin-bar,.panel{ position:relative; z-index:1; }
+</style>
+</head>
+<body>
+<div id="bgfx" aria-hidden="true"></div>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo"></div><div>Artiqa Gallery</div>
+      <span class="tag" id="roleBadge">游客模式</span>
+    </div>
+    <div class="spacer"></div>
+    <nav class="menu" aria-label="主菜单">
+      <span class="indicator" id="menuIndicator"></span>
+      <button class="link active" id="navGallery">画廊</button>
+      <button class="link" id="navHalls">展厅</button>
+      <button class="link" id="navAbout">关于</button>
+      <button class="link" id="navAuthor">作者简介</button>
+      <button class="link" id="navContact">作者联系方式</button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="top-actions">
+      <button class="btn" id="themeBtn" title="切换主题">主题：浅色</button>
+      <button class="btn" id="loginBtn">管理员登录</button>
+      <button class="btn hidden" id="logoutBtn">退出管理员</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>用艺术的方式看世界</h1>
+  <p>beta1.6（最终 Beta）：主题切换 · 收藏过滤 · 排序 · 加载更多 · URL 直达与恢复 · 细节优化</p>
+</section>
+
+<div class="toolbar" id="toolbar" aria-live="polite">
+  <span class="pill" id="filterPill" style="display:none;">当前展厅：<strong id="filterName"></strong> <button class="btn ghost clearFilter" id="clearFilterBtn">清除</button></span>
+
+  <div class="search" role="search" style="min-width:180px">
+    <span aria-hidden="true">🔎</span>
+    <input id="searchInput" type="search" placeholder="搜索作品标题或介绍（按 / 聚焦）" aria-label="搜索作品">
+    <span class="count" id="searchCount"></span>
+    <button class="btn ghost" id="clearSearchBtn" title="清空搜索">清空</button>
+    <span class="muted" style="margin-left:6px;display:none" id="searchHint"><kbd>/</kbd> 聚焦</span>
+  </div>
+
+  <select class="select" id="sortSelect" title="排序">
+    <option value="date_desc">最新优先</option>
+    <option value="title_asc">标题 A→Z</option>
+    <option value="title_desc">标题 Z→A</option>
+  </select>
+
+  <label class="tgl" title="仅显示已收藏">
+    <input type="checkbox" id="favOnly">
+    <span>仅收藏 ❤️</span>
+  </label>
+</div>
+
+<main class="gallery" id="gallery" aria-live="polite"></main>
+<div style="max-width:1100px;margin:0 auto 120px; padding:0 14px;">
+  <button class="btn" id="loadMoreBtn" style="display:none;width:100%;">加载更多</button>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true">
+  <div class="lightbox-inner wm" role="document">
+    <div class="imgwrap"><img id="lbImg" alt="作品大图"/></div>
+    <button class="x" id="lbClose" aria-label="关闭">✕</button>
+    <div class="info">
+      <div style="flex:1">
+        <h3 id="lbTitle">标题</h3>
+        <p id="lbDesc">介绍</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="shareBtn" title="复制直达链接">分享链接</button>
+        <div id="lbAdminActions" class="hidden" style="display:flex; gap:8px;">
+          <button class="btn" id="downloadBtn">下载</button>
+          <button class="btn" id="deleteBtn">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin bar -->
+<div class="admin-bar hidden" id="adminBar">
+  <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+  <button class="btn primary" id="addBtn">添加作品</button>
+  <button class="btn" id="editBtn">编辑作品信息</button>
+  <button class="btn" id="profileBtn">编辑作者资料</button>
+  <button class="btn" id="hallsBtn">管理展厅</button>
+  <button class="btn" id="backupBtn">导出备份</button>
+  <button class="btn" id="restoreBtn">导入备份</button>
+</div>
+
+<!-- Edit artwork panel -->
+<div class="panel hidden" id="editPanel">
+  <h3>编辑作品信息</h3>
+  <div class="row">
+    <div class="field"><label for="titleInput">标题</label><input id="titleInput" class="input" placeholder="如：无题 No.7" /></div>
+    <div class="field"><label for="descInput">介绍</label><textarea id="descInput" class="textarea" placeholder="作品创作背景、媒介与灵感……"></textarea></div>
+    <div class="row-actions">
+      <button class="btn" id="saveMetaBtn">保存</button>
+      <button class="btn ghost" id="cancelMetaBtn">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit profile panel -->
+<div class="panel hidden" id="profilePanel">
+  <h3>编辑作者资料</h3>
+  <div class="row">
+    <div class="field">
+      <label for="bioInput">作者简介</label>
+      <textarea id="bioInput" class="textarea" placeholder="输入作者自我介绍、创作理念与经历"></textarea>
+    </div>
+    <div class="field">
+      <label>社交磁贴</label>
+      <div id="tilesEditor"></div>
+      <div class="row-actions" style="justify-content:flex-start; gap:6px; margin-top:8px;">
+        <button class="btn" id="addTileBtn">新增磁贴</button>
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="btn" id="saveProfileBtn">保存作者资料</button>
+      <button class="btn ghost" id="cancelProfileBtn">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage halls panel -->
+<div class="panel hidden" id="hallPanel">
+  <h3>管理展厅</h3>
+  <div class="row">
+    <div class="field"><label for="hallTitle">展厅标题</label><input class="input" id="hallTitle" placeholder="例如：『抽象 · 紫罗兰』"></div>
+    <div class="field"><label for="hallDesc">展厅简介</label><textarea class="textarea" id="hallDesc" placeholder="介绍该展厅的主题、灵感与媒介"></textarea></div>
+    <div class="field">
+      <label>选择作品（加入本展厅）</label>
+      <div id="hallItemsPicker" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:8px;"></div>
+    </div>
+    <div class="row-actions">
+      <button class="btn" id="saveHallBtn">保存展厅</button>
+      <button class="btn ghost" id="cancelHallBtn">取消</button>
+      <button class="btn ghost hidden" id="deleteHallBtn">删除展厅</button>
+    </div>
+  </div>
+</div>
+
+<!-- Halls sheet -->
+<div class="sheet" id="hallsSheet" role="dialog" aria-modal="true">
+  <div class="panel-lg">
+    <header><div class="hd"><h2>展厅</h2><button class="xbtn" id="hallsClose">关闭</button></div></header>
+    <div class="bd"><div class="hall-list" id="hallsList"></div></div>
+  </div>
+</div>
+
+<!-- About sheet -->
+<div class="sheet" id="aboutSheet" role="dialog" aria-modal="true">
+  <div class="panel-lg">
+    <header><div class="hd"><h2>关于 Artiqa</h2><button class="xbtn" id="aboutClose">关闭</button></div></header>
+    <div class="bd">
+      <p class="muted">以艺术感为核心的前端画廊模板。此页面为 <b>beta1.6</b> 最终 Beta 版本。</p>
+      <h3>版本更新</h3>
+      <div class="ver">
+        <div class="chip">beta1.6 · 2025-10-07</div>
+        <ul>
+          <li>主题切换（浅色/深色，自动记忆）。</li>
+          <li>作品收藏 ❤️ 与「仅收藏」过滤。</li>
+          <li>排序（最新/标题 A→Z/Z→A）。</li>
+          <li>分页加载（加载更多）。</li>
+          <li>URL 状态同步与直达分享，Lightbox 支持键盘翻阅。</li>
+        </ul>
+      </div>
+      <div class="ver"><div class="chip">beta1.5 · 2025-10-01</div><ul><li>更顺滑的进场动画；移动端优化；搜索与高亮。</li></ul></div>
+      <div class="ver"><div class="chip">beta1.4 · 2025-10-01</div><ul><li>引入「展厅」，过滤与列表页。</li></ul></div>
+      <p class="muted">注：纯前端演示。生产请接入后端与鉴权/存储。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Author sheet -->
+<div class="sheet" id="authorSheet" role="dialog" aria-modal="true">
+  <div class="panel-lg">
+    <header><div class="hd"><h2>作者简介</h2><button class="xbtn" id="authorClose">关闭</button></div></header>
+    <div class="bd"><div id="authorBio">这里放置作者的自我介绍、创作理念与获奖经历等内容。</div></div>
+  </div>
+</div>
+
+<!-- Contact sheet -->
+<div class="sheet" id="contactSheet" role="dialog" aria-modal="true">
+  <div class="panel-lg">
+    <header><div class="hd"><h2>作者联系方式</h2><button class="xbtn" id="contactClose">关闭</button></div></header>
+    <div class="bd">
+      <div class="tiles" id="contactTiles"></div>
+      <p class="muted" style="margin-top:10px">提示：上线时建议用联系表单 + 防垃圾验证，或使用无后端表单服务。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Login modal -->
+<div class="modal" id="loginModal">
+  <div class="card-lg">
+    <h2 style="margin:6px 0 2px">管理员登录</h2>
+    <p class="muted" style="margin-top:0">演示用途：凭证仅在本地校验。实际项目请改后端认证。</p>
+    <div class="field" style="margin-top:12px"><label for="user">用户名</label><input id="user" class="input" placeholder="admin" autocomplete="username"></div>
+    <div class="field"><label for="pass">密码</label><input id="pass" class="input" placeholder="••••••" type="password" autocomplete="current-password"></div>
+    <div class="row-actions" style="margin-top:12px">
+      <button class="btn" id="loginConfirm">登录</button>
+      <button class="btn ghost" id="loginCancel">取消</button>
+    </div>
+    <p class="muted" style="font-size:12px; margin-top:10px">默认凭证：<b>admin</b> / <b>art1234</b>（源码常量可改）</p>
+  </div>
+</div>
+
+<!-- Card template -->
+<template id="cardTpl">
+  <article class="card" role="button" tabindex="0" aria-label="打开作品">
+    <button class="fav" title="收藏/取消收藏" aria-pressed="false"><span>🤍</span></button>
+    <img alt="作品缩略图" loading="lazy" />
+    <div class="meta">
+      <div class="title"></div>
+      <div class="desc"></div>
+    </div>
+  </article>
+</template>
+
+<script>
+/* ===== Constants ===== */
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = 'art1234';
+const PAGE_STEP = 12; // 每次加载数量
+
+/* ===== Elements ===== */
+const els = {
+  gallery: document.getElementById('gallery'),
+  loadMoreBtn: document.getElementById('loadMoreBtn'),
+
+  roleBadge: document.getElementById('roleBadge'),
+  loginBtn: document.getElementById('loginBtn'),
+  logoutBtn: document.getElementById('logoutBtn'),
+  adminBar: document.getElementById('adminBar'),
+  addBtn: document.getElementById('addBtn'),
+  fileInput: document.getElementById('fileInput'),
+  editBtn: document.getElementById('editBtn'),
+  editPanel: document.getElementById('editPanel'),
+  titleInput: document.getElementById('titleInput'),
+  descInput: document.getElementById('descInput'),
+  saveMetaBtn: document.getElementById('saveMetaBtn'),
+  cancelMetaBtn: document.getElementById('cancelMetaBtn'),
+  backupBtn: document.getElementById('backupBtn'),
+  restoreBtn: document.getElementById('restoreBtn'),
+
+  loginModal: document.getElementById('loginModal'),
+  loginConfirm: document.getElementById('loginConfirm'),
+  loginCancel: document.getElementById('loginCancel'),
+  user: document.getElementById('user'),
+  pass: document.getElementById('pass'),
+
+  lightbox: document.getElementById('lightbox'),
+  lbImg: document.getElementById('lbImg'),
+  lbTitle: document.getElementById('lbTitle'),
+  lbDesc: document.getElementById('lbDesc'),
+  lbClose: document.getElementById('lbClose'),
+  lbAdminActions: document.getElementById('lbAdminActions'),
+  downloadBtn: document.getElementById('downloadBtn'),
+  deleteBtn: document.getElementById('deleteBtn'),
+  shareBtn: document.getElementById('shareBtn'),
+
+  cardTpl: document.getElementById('cardTpl'),
+
+  // nav
+  navGallery: document.getElementById('navGallery'),
+  navHalls: document.getElementById('navHalls'),
+  navAbout: document.getElementById('navAbout'),
+  navAuthor: document.getElementById('navAuthor'),
+  navContact: document.getElementById('navContact'),
+
+  // sheets
+  hallsSheet: document.getElementById('hallsSheet'),
+  hallsClose: document.getElementById('hallsClose'),
+  hallsList: document.getElementById('hallsList'),
+  aboutSheet: document.getElementById('aboutSheet'),
+  authorSheet: document.getElementById('authorSheet'),
+  contactSheet: document.getElementById('contactSheet'),
+  aboutClose: document.getElementById('aboutClose'),
+  authorClose: document.getElementById('authorClose'),
+  contactClose: document.getElementById('contactClose'),
+  menuIndicator: document.getElementById('menuIndicator'),
+
+  // profile editing
+  profileBtn: document.getElementById('profileBtn'),
+  profilePanel: document.getElementById('profilePanel'),
+  bioInput: document.getElementById('bioInput'),
+  tilesEditor: document.getElementById('tilesEditor'),
+  addTileBtn: document.getElementById('addTileBtn'),
+  saveProfileBtn: document.getElementById('saveProfileBtn'),
+  cancelProfileBtn: document.getElementById('cancelProfileBtn'),
+  authorBio: document.getElementById('authorBio'),
+  contactTiles: document.getElementById('contactTiles'),
+
+  // halls management
+  hallsBtn: document.getElementById('hallsBtn'),
+  hallPanel: document.getElementById('hallPanel'),
+  hallTitle: document.getElementById('hallTitle'),
+  hallDesc: document.getElementById('hallDesc'),
+  hallItemsPicker: document.getElementById('hallItemsPicker'),
+  saveHallBtn: document.getElementById('saveHallBtn'),
+  cancelHallBtn: document.getElementById('cancelHallBtn'),
+  deleteHallBtn: document.getElementById('deleteHallBtn'),
+
+  // filter UI
+  filterPill: document.getElementById('filterPill'),
+  filterName: document.getElementById('filterName'),
+  clearFilterBtn: document.getElementById('clearFilterBtn'),
+
+  // search/sort/fav
+  searchInput: document.getElementById('searchInput'),
+  clearSearchBtn: document.getElementById('clearSearchBtn'),
+  searchCount: document.getElementById('searchCount'),
+  searchHint: document.getElementById('searchHint'),
+  sortSelect: document.getElementById('sortSelect'),
+  favOnly: document.getElementById('favOnly'),
+
+  // theme
+  themeBtn: document.getElementById('themeBtn'),
+};
+
+/* ===== State ===== */
+let isAdmin = false;
+let items = loadItems();
+let currentIdx = -1;
+let currentHallId = null;
+let io = null;                // ✅ 仅此处声明一次
+let profile = loadProfile();
+let halls = loadHalls();
+let searchTerm = "";
+let sortKey = "date_desc";
+let favSet = loadFavSet();
+let favOnly = false;
+let visibleCount = PAGE_STEP;
+
+/* ===== Theme ===== */
+function loadTheme(){
+  const t = localStorage.getItem('artiqa_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'light');
+  els.themeBtn.textContent = '主题：' + (t==='dark'?'深色':'浅色');
+}
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
+  const nxt = cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme', nxt);
+  localStorage.setItem('artiqa_theme', nxt);
+  els.themeBtn.textContent = '主题：' + (nxt==='dark'?'深色':'浅色');
+  syncHash();
+}
+els.themeBtn.addEventListener('click', toggleTheme);
+
+/* ===== Utils ===== */
+const escapeHTML = (s)=> (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+function highlight(text, q){
+  if(!q) return escapeHTML(text||'');
+  try{
+    const re = new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ")", "ig");
+    return escapeHTML(text||'').replace(re, "<mark>$1</mark>");
+  }catch{ return escapeHTML(text||''); }
+}
+function normalize(s){ return (s||"").toLowerCase(); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* ===== Data ===== */
+function loadItems(){
+  const raw = localStorage.getItem('artiqa_items');
+  if(raw){ try{ return JSON.parse(raw);}catch{} }
+  const seed = [
+    mkSeed('晨雾中的松林','宣纸 / 水墨','Misty Pines'),
+    mkSeed('静物·金属罐','油画 / 写实','Still Life'),
+    mkSeed('紫罗兰 No.3','丙烯 / 抽象','Violet Abstraction')
+  ];
+  saveItems(seed);
+  return seed;
+}
+function saveItems(arr){ localStorage.setItem('artiqa_items', JSON.stringify(arr)); }
+function mkSeed(title, desc, label){
+  const svg = `
+<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'>
+  <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+    <stop offset='0%' stop-color='#a78bfa'/><stop offset='50%' stop-color='#60a5fa'/><stop offset='100%' stop-color='#f472b6'/>
+  </linearGradient></defs>
+  <rect width='100%' height='100%' fill='url(#g)'/>
+  <g font-family='Georgia, serif' fill='rgba(255,255,255,.95)'>
+    <text x='50%' y='45%' font-size='64' font-weight='700' text-anchor='middle'>${title}</text>
+    <text x='50%' y='58%' font-size='28' text-anchor='middle'>${label}</text>
+  </g>
+</svg>`;
+  return { id: crypto.randomUUID(), title, desc, dataURL: 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))), date: Date.now() };
+}
+
+/* Profile */
+function defaultProfile(){
+  return {
+    bio: '这里放置作者的自我介绍、创作理念与获奖经历等内容。',
+    tiles: [
+      { label: 'Email', url: 'mailto:artist@example.com', color: '#fee2e2', text: '#991b1b', emoji: '✉️' },
+      { label: 'Instagram', url: '#', color: '#e9d5ff', text: '#6d28d9', emoji: '📸' },
+      { label: '微博 / 小红书', url: '#', color: '#dbeafe', text: '#1d4ed8', emoji: '📕' }
+    ]
+  };
+}
+function loadProfile(){
+  const raw = localStorage.getItem('artiqa_profile');
+  if(!raw){ const p=defaultProfile(); saveProfile(p); return p; }
+  try{ const p=JSON.parse(raw); if(!Array.isArray(p.tiles)) p.tiles=[]; return p; }catch{ const p=defaultProfile(); saveProfile(p); return p; }
+}
+function saveProfile(p){ localStorage.setItem('artiqa_profile', JSON.stringify(p)); }
+
+/* Halls */
+function loadHalls(){ const raw = localStorage.getItem('artiqa_halls'); if(!raw) return []; try{ const h=JSON.parse(raw); return Array.isArray(h)?h:[]; }catch{ return []; } }
+function saveHalls(h){ localStorage.setItem('artiqa_halls', JSON.stringify(h)); }
+function newHall(){ return { id: crypto.randomUUID(), title: '', desc: '', itemIds: [] }; }
+
+/* Favorites */
+function loadFavSet(){
+  try{
+    const raw = localStorage.getItem('artiqa_fav'); if(!raw) return new Set();
+    const arr = JSON.parse(raw); return new Set(Array.isArray(arr)?arr:[]);
+  }catch{ return new Set(); }
+}
+function saveFavSet(){ localStorage.setItem('artiqa_fav', JSON.stringify(Array.from(favSet))); }
+
+/* ===== Intersection Observer ===== */
+function ensureObserver(){
+  if(io) return;
+  io = new IntersectionObserver((entries)=>{
+    for(const ent of entries){ if(ent.isIntersecting) ent.target.style.animationPlayState = 'running'; }
+  }, { threshold: .12 });
+}
+
+/* ===== Search / Sort / Filter ===== */
+let searchTimer = null;
+function setSearchTerm(v){ searchTerm = v.trim(); visibleCount = PAGE_STEP; syncHash(); render(); }
+function onSearchInput(){
+  const v = els.searchInput.value;
+  if(searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(()=> setSearchTerm(v), 120);
+}
+function clearSearch(){ els.searchInput.value=''; setSearchTerm(''); }
+
+function compareItems(a,b){
+  if(sortKey==='date_desc'){ return b.date - a.date; }
+  if(sortKey==='title_asc'){ return (a.title||'').localeCompare(b.title||'', 'zh'); }
+  if(sortKey==='title_desc'){ return (b.title||'').localeCompare(a.title||'', 'zh'); }
+  return 0;
+}
+els.sortSelect.addEventListener('change', ()=>{ sortKey = els.sortSelect.value; visibleCount = PAGE_STEP; syncHash(); render(); });
+els.favOnly.addEventListener('change', ()=>{ favOnly = els.favOnly.checked; visibleCount = PAGE_STEP; syncHash(); render(); });
+
+/* ===== URL hash sync ===== */
+function parseHash(){
+  const h = location.hash.replace(/^#/, '');
+  const params = new URLSearchParams(h);
+  return {
+    item: params.get('item')||null,
+    hall: params.get('hall')||null,
+    q: params.get('q')||'',
+    sort: params.get('sort')||'date_desc',
+    fav: params.get('fav')==='1',
+    theme: params.get('theme')||null
+  };
+}
+function syncHash(){
+  const params = new URLSearchParams();
+  if(currentHallId) params.set('hall', currentHallId);
+  if(searchTerm) params.set('q', searchTerm);
+  if(sortKey && sortKey!=='date_desc') params.set('sort', sortKey);
+  if(favOnly) params.set('fav','1');
+  const theme = document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
+  if(theme==='dark') params.set('theme','dark');
+  const hasItem = (currentIdx>=0 && items[currentIdx]);
+  if(hasItem) params.set('item', items[currentIdx].id);
+  const s = params.toString();
+  // ✅ 修正：无参数时也保持完整 URL（避免极少数环境相对路径问题）
+  const newURL = location.pathname + location.search + (s ? ('#'+s) : '');
+  history.replaceState(null, '', newURL);
+}
+window.addEventListener('hashchange', ()=>{ restoreFromHash(); });
+
+function restoreFromHash(){
+  const st = parseHash();
+  if(st.theme && (st.theme==='dark' || st.theme==='light')){
+    document.documentElement.setAttribute('data-theme', st.theme);
+    localStorage.setItem('artiqa_theme', st.theme);
+    els.themeBtn.textContent = '主题：' + (st.theme==='dark'?'深色':'浅色');
+  }
+  if(st.hall && halls.some(h=>h.id===st.hall)){ currentHallId = st.hall; }
+  else { currentHallId = null; }
+  searchTerm = st.q||'';
+  els.searchInput.value = searchTerm;
+  sortKey = st.sort||'date_desc';
+  els.sortSelect.value = sortKey;
+  favOnly = !!st.fav;
+  els.favOnly.checked = favOnly;
+  visibleCount = PAGE_STEP;
+  render();
+  if(st.item){
+    const idx = items.findIndex(x=>x.id===st.item);
+    if(idx>=0){ openLightbox(idx); }
+  }
+}
+
+/* ===== Compose data ===== */
+function getFilteredData(){
+  let data = items.slice();
+  // hall
+  if(currentHallId){
+    const ids = (halls.find(h=>h.id===currentHallId)?.itemIds)||[];
+    data = data.filter(it => ids.includes(it.id));
+  }
+  // search
+  if(searchTerm){
+    const q = normalize(searchTerm);
+    data = data.filter(it => normalize(it.title).includes(q) || normalize(it.desc).includes(q));
+  }
+  // favOnly
+  if(favOnly){
+    data = data.filter(it => favSet.has(it.id));
+  }
+  // sort
+  data.sort(compareItems);
+  return data;
+}
+
+/* ===== Render ===== */
+function render(){
+  els.gallery.innerHTML = '';
+  ensureObserver();
+
+  // Filter pill
+  if(currentHallId){
+    const hall = halls.find(h=>h.id===currentHallId);
+    els.filterName.textContent = hall? hall.title : '未知展厅';
+    els.filterPill.style.display = 'inline-flex';
+  }else{
+    els.filterPill.style.display = 'none';
+  }
+
+  const full = getFilteredData();
+  const data = full.slice(0, visibleCount);
+
+  // 结果统计
+  const totalBase = (currentHallId ? (halls.find(h=>h.id===currentHallId)?.itemIds||[]).length : items.length);
+  if(searchTerm || favOnly){ els.searchCount.textContent = `${full.length} / ${totalBase}`; }
+  else { els.searchCount.textContent = ''; }
+
+  data.forEach((it, idxAll) => {
+    const idx = items.findIndex(x=>x.id===it.id);
+    const node = els.cardTpl.content.firstElementChild.cloneNode(true);
+    node.style.setProperty('--i', idxAll);
+
+    // fav button
+    const favBtn = node.querySelector('.fav');
+    if(favSet.has(it.id)){ favBtn.dataset.on = '1'; favBtn.querySelector('span').textContent = '❤️'; favBtn.setAttribute('aria-pressed','true'); }
+    favBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(favSet.has(it.id)){ favSet.delete(it.id); favBtn.dataset.on='0'; favBtn.querySelector('span').textContent='🤍'; favBtn.setAttribute('aria-pressed','false'); }
+      else { favSet.add(it.id); favBtn.dataset.on='1'; favBtn.querySelector('span').textContent='❤️'; favBtn.setAttribute('aria-pressed','true'); }
+      saveFavSet();
+      if(favOnly){ render(); }
+    });
+
+    const img = node.querySelector('img');
+    img.src = it.dataURL;
+    img.alt = (it.title || '无题') + ' 缩略图';
+
+    node.querySelector('.title').innerHTML = highlight(it.title || '无题', searchTerm);
+    node.querySelector('.desc').innerHTML  = highlight(it.desc || '', searchTerm);
+
+    node.addEventListener('click', () => openLightbox(idx));
+    node.addEventListener('keyup', (e)=>{ if(e.key==='Enter') openLightbox(idx); });
+
+    els.gallery.appendChild(node);
+    io.observe(node);
+  });
+
+  if(full.length===0){
+    const emp = document.createElement('div');
+    emp.className='muted';
+    emp.style.cssText='text-align:center; grid-column:1/-1; padding:20px;';
+    emp.textContent = (searchTerm||favOnly) ? '没有符合条件的作品。' : '该展厅暂无作品。';
+    els.gallery.appendChild(emp);
+  }
+
+  // 加载更多
+  els.loadMoreBtn.style.display = full.length > visibleCount ? 'block' : 'none';
+}
+
+/* ===== Render halls list ===== */
+function renderHallsList(){
+  els.hallsList.innerHTML = '';
+  if(halls.length===0){
+    els.hallsList.innerHTML = '<div class="muted">尚未创建任何展厅（管理员可点击“管理展厅”创建）。</div>';
+    return;
+  }
+  halls.forEach(h=>{
+    const c = document.createElement('div');
+    c.className = 'hall';
+    const count = (h.itemIds||[]).length;
+    const cover = items.find(it=> (h.itemIds||[]).includes(it.id));
+    c.innerHTML = `
+      <div class="hdline"><h4>${escapeHTML(h.title||'未命名展厅')}</h4><span class="chip">${count} 件作品</span></div>
+      ${cover? `<img src="${cover.dataURL}" alt="cover" style="width:100%;height:140px;object-fit:cover;border-radius:10px;">` : ''}
+      <div class="meta">${escapeHTML(h.desc||'')}</div>
+      <div class="actions"><button class="btn" data-open>进入展厅</button><button class="btn ghost" data-edit>编辑</button></div>
+    `;
+    c.querySelector('[data-open]').addEventListener('click', ()=>{
+      currentHallId = h.id;
+      closeSheet(els.hallsSheet);
+      setActive(els.navGallery);
+      moveIndicator(els.navGallery);
+      visibleCount = PAGE_STEP;
+      syncHash();
+      render();
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+    c.querySelector('[data-edit]').addEventListener('click', ()=> openHallEditor(h.id));
+    els.hallsList.appendChild(c);
+  });
+}
+
+/* ===== Hall editor ===== */
+let editingHallId = null;
+function openHallEditor(id=null){
+  editingHallId = id;
+  let h = id ? halls.find(x=>x.id===id) : newHall();
+  if(!h){ h = newHall(); editingHallId = null; }
+  els.hallTitle.value = h.title||'';
+  els.hallDesc.value = h.desc||'';
+  els.deleteHallBtn.classList.toggle('hidden', !id);
+  renderHallItemsPicker(h.itemIds||[]);
+  els.hallPanel.classList.remove('hidden');
+}
+function renderHallItemsPicker(selectedIds){
+  els.hallItemsPicker.innerHTML='';
+  items.forEach(it=>{
+    const id = it.id;
+    const checked = selectedIds.includes(id);
+    const cell = document.createElement('label');
+    cell.style.cssText = 'display:flex; gap:8px; align-items:center; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:8px; cursor:pointer;';
+    cell.innerHTML = `
+      <input type="checkbox" ${checked?'checked':''} data-id="${id}">
+      <img src="${it.dataURL}" alt="thumb" style="width:48px;height:48px;object-fit:cover;border-radius:8px;">
+      <span style="font-size:12px;">${escapeHTML(it.title||'无题')}</span>
+    `;
+    if(document.documentElement.getAttribute('data-theme')==='dark'){
+      cell.style.background = '#15151b'; cell.style.borderColor = '#2a2a33'; cell.style.color = '#e5e7eb';
+    }
+    els.hallItemsPicker.appendChild(cell);
+  });
+}
+function collectSelectedIds(){ return Array.from(els.hallItemsPicker.querySelectorAll('input[type="checkbox"]:checked')).map(x=>x.getAttribute('data-id')); }
+els.hallsBtn.addEventListener('click', ()=> openHallEditor(null));
+els.saveHallBtn.addEventListener('click', ()=>{
+  const title = els.hallTitle.value.trim();
+  const desc = els.hallDesc.value.trim();
+  const itemIds = collectSelectedIds();
+  if(!title){ alert('展厅标题不能为空'); return; }
+  if(editingHallId){
+    const idx = halls.findIndex(h=>h.id===editingHallId);
+    if(idx>=0){ halls[idx].title=title; halls[idx].desc=desc; halls[idx].itemIds=itemIds; }
+  }else{
+    halls.push({ id: crypto.randomUUID(), title, desc, itemIds });
+  }
+  saveHalls(halls);
+  els.hallPanel.classList.add('hidden');
+  renderHallsList();
+  render();
+  syncHash();
+});
+els.cancelHallBtn.addEventListener('click', ()=> els.hallPanel.classList.add('hidden'));
+els.deleteHallBtn.addEventListener('click', ()=>{
+  if(!editingHallId) return;
+  if(!confirm('确定删除该展厅？')) return;
+  halls = halls.filter(h=>h.id!==editingHallId);
+  saveHalls(halls);
+  els.hallPanel.classList.add('hidden');
+  renderHallsList();
+  if(currentHallId===editingHallId){ currentHallId=null; render(); syncHash(); }
+});
+
+/* ===== Lightbox ===== */
+function openLightbox(idx){
+  currentIdx = idx;
+  const it = items[idx];
+  els.lbImg.src = it.dataURL;
+  els.lbTitle.textContent = it.title || '无题';
+  els.lbDesc.textContent = it.desc || '';
+  els.lbAdminActions.classList.toggle('hidden', !isAdmin);
+  els.lightbox.classList.add('on');
+  syncHash();
+  setTimeout(()=> els.lbClose.focus(), 0);
+}
+function closeLightbox(){ els.lightbox.classList.remove('on'); currentIdx = -1; syncHash(); }
+els.lbClose.addEventListener('click', closeLightbox);
+els.lightbox.addEventListener('click', (e)=>{ if(e.target===els.lightbox) closeLightbox(); });
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeLightbox();
+  if(currentIdx>=0){
+    if(e.key==='ArrowRight' || e.key==='d'){ navLightbox(+1); }
+    if(e.key==='ArrowLeft'  || e.key==='a'){ navLightbox(-1); }
+  }
+});
+// 触控下滑关闭
+let touchStartY = null;
+els.lightbox.addEventListener('touchstart', (e)=>{ touchStartY = e.touches[0].clientY; }, {passive:true});
+els.lightbox.addEventListener('touchmove', (e)=>{
+  if(touchStartY==null) return;
+  const dy = e.touches[0].clientY - touchStartY;
+  if(dy>60) closeLightbox();
+}, {passive:true});
+els.lightbox.addEventListener('touchend', ()=>{ touchStartY=null; });
+
+function navLightbox(step){
+  const scope = getFilteredData().map(x=>x.id);
+  const curId = items[currentIdx].id;
+  const curIndexInScope = scope.indexOf(curId);
+  if(curIndexInScope<0) return;
+  const nextIndexInScope = (curIndexInScope + step + scope.length) % scope.length;
+  const nextId = scope[nextIndexInScope];
+  const idx = items.findIndex(x=>x.id===nextId);
+  if(idx>=0) openLightbox(idx);
+}
+
+/* Share */
+els.shareBtn.addEventListener('click', async ()=>{
+  syncHash();
+  const url = location.href;
+  try{
+    await navigator.clipboard.writeText(url);
+    els.shareBtn.textContent = '已复制 ✅';
+    setTimeout(()=> els.shareBtn.textContent = '分享链接', 1200);
+  }catch{
+    prompt('复制以下链接：', url);
+  }
+});
+
+/* ===== Admin (artworks) ===== */
+els.downloadBtn.addEventListener('click', () => {
+  if (!isAdmin || currentIdx<0) return;
+  const it = items[currentIdx];
+  const a = document.createElement('a');
+  a.href = it.dataURL; a.download = (it.title || 'artwork') + '.png';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+els.deleteBtn.addEventListener('click', () => {
+  if (!isAdmin || currentIdx<0) return;
+  if (!confirm('确定删除该作品吗？')) return;
+  const removedId = items[currentIdx].id;
+  items.splice(currentIdx,1);
+  saveItems(items);
+  halls.forEach(h=> h.itemIds = (h.itemIds||[]).filter(id=>id!==removedId));
+  saveHalls(halls);
+  renderHallsList();
+  render();
+  closeLightbox();
+});
+els.editBtn.addEventListener('click', () => {
+  if (currentIdx<0) { alert('请先在画廊中打开一幅作品再编辑。'); return; }
+  const it = items[currentIdx];
+  els.titleInput.value = it.title || '';
+  els.descInput.value = it.desc || '';
+  els.editPanel.classList.remove('hidden');
+});
+els.cancelMetaBtn.addEventListener('click', () => els.editPanel.classList.add('hidden'));
+els.saveMetaBtn.addEventListener('click', () => {
+  if (currentIdx<0) return;
+  items[currentIdx].title = els.titleInput.value.trim();
+  items[currentIdx].desc = els.descInput.value.trim();
+  saveItems(items);
+  render();
+  els.lbTitle.textContent = items[currentIdx].title || '无题';
+  els.lbDesc.textContent = items[currentIdx].desc || '';
+  els.editPanel.classList.add('hidden');
+});
+
+els.addBtn.addEventListener('click', () => els.fileInput.click());
+els.fileInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    const dataURL = await fileToDataURL(f);
+    items.unshift({ id: crypto.randomUUID(), title: f.name.replace(/\.[^.]+$/, ''), desc: '', dataURL, date: Date.now() });
+  }
+  saveItems(items);
+  renderHallItemsPicker(collectSelectedIds());
+  visibleCount = PAGE_STEP;
+  render();
+  e.target.value = '';
+});
+function fileToDataURL(file){ return new Promise((resolve,reject)=>{ const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); }); }
+
+/* ===== Admin (profile) ===== */
+function tileRow(t, idx){
+  const wrap = document.createElement('div');
+  wrap.setAttribute('data-row', idx);
+  wrap.style.cssText = 'display:grid; grid-template-columns: 1.2fr 2fr 120px 120px 70px auto; gap:8px; align-items:end; margin:8px 0;';
+  wrap.innerHTML = `
+    <div class="field"><label>名称</label><input class="input" data-k="label" value="${escapeHTML(t.label||'')}"></div>
+    <div class="field"><label>链接</label><input class="input" data-k="url" value="${escapeHTML(t.url||'')}" placeholder="https:// 或 mailto:"></div>
+    <div class="field"><label>背景色</label><input class="input" data-k="color" value="${escapeHTML(t.color||'#eef2ff')}" placeholder="#e5e7eb"></div>
+    <div class="field"><label>文字色</label><input class="input" data-k="text" value="${escapeHTML(t.text||'#1f2937')}" placeholder="#111827"></div>
+    <div class="field"><label>表情</label><input class="input" data-k="emoji" value="${escapeHTML(t.emoji||'🔗')}" placeholder="🔗"></div>
+    <button class="btn ghost" data-del>删除</button>
+  `;
+  wrap.querySelector('[data-del]').addEventListener('click', ()=>{ profile.tiles.splice(idx,1); renderTilesEditor(); });
+  return wrap;
+}
+function renderTilesEditor(){
+  els.tilesEditor.innerHTML='';
+  (profile.tiles||[]).forEach((t,i)=> els.tilesEditor.appendChild(tileRow(t,i)));
+  if((profile.tiles||[]).length===0){
+    els.tilesEditor.innerHTML = '<div class="muted">暂无磁贴，点击“新增磁贴”添加。</div>';
+  }
+}
+els.profileBtn.addEventListener('click', ()=>{
+  els.bioInput.value = profile.bio || '';
+  renderTilesEditor();
+  els.profilePanel.classList.remove('hidden');
+});
+els.cancelProfileBtn.addEventListener('click', ()=> els.profilePanel.classList.add('hidden'));
+els.addTileBtn.addEventListener('click', ()=>{
+  (profile.tiles ||= []).push({label:'新磁贴', url:'#', color:'#eef2ff', text:'#1f2937', emoji:'🔗'});
+  renderTilesEditor();
+});
+els.saveProfileBtn.addEventListener('click', ()=>{
+  profile.bio = els.bioInput.value.trim();
+  const rows = els.tilesEditor.querySelectorAll('[data-row]');
+  const next = [];
+  rows.forEach(r=>{
+    const label = r.querySelector('[data-k="label"]').value.trim();
+    const url = r.querySelector('[data-k="url"]').value.trim();
+    const color = r.querySelector('[data-k="color"]').value.trim() || '#eef2ff';
+    const text  = r.querySelector('[data-k="text"]').value.trim() || '#1f2937';
+    const emoji = r.querySelector('[data-k="emoji"]').value.trim() || '🔗';
+    if(label && url) next.push({label,url,color,text,emoji});
+  });
+  profile.tiles = next;
+  saveProfile(profile);
+  renderAuthor();
+  renderTiles();
+  els.profilePanel.classList.add('hidden');
+});
+function renderAuthor(){ els.authorBio.textContent = profile.bio || ''; }
+function renderTiles(){
+  els.contactTiles.innerHTML = '';
+  (profile.tiles||[]).forEach((t)=>{
+    const a = document.createElement('a');
+    a.className='tile'; a.href=t.url||'#';
+    a.target=(t.url||'').startsWith('mailto:')?'_self':'_blank';
+    a.rel='noopener';
+    a.innerHTML = `
+      <div class="ico" style="background:${t.color||'#eef2ff'}; color:${t.text||'#1f2937'}">${escapeHTML(t.emoji||'🔗')}</div>
+      <div><div class="lbl">${escapeHTML(t.label||'链接')}</div><div class="muted" style="font-size:12px;">${escapeHTML((t.url||'').replace(/^mailto:/,''))}</div></div>
+    `;
+    els.contactTiles.appendChild(a);
+  });
+}
+
+/* ===== Auth ===== */
+function setRole(admin){
+  isAdmin = !!admin;
+  els.roleBadge.textContent = admin ? '管理员模式' : '游客模式';
+  els.loginBtn.classList.toggle('hidden', admin);
+  els.logoutBtn.classList.toggle('hidden', !admin);
+  els.adminBar.classList.toggle('hidden', !admin);
+  if (!admin) {
+    document.body.style.userSelect = 'none';
+    document.addEventListener('contextmenu', blockCtx, {capture:true});
+    document.addEventListener('dragstart', blockEvt, {capture:true});
+  } else {
+    document.body.style.userSelect = 'auto';
+    document.removeEventListener('contextmenu', blockCtx, {capture:true});
+    document.removeEventListener('dragstart', blockEvt, {capture:true});
+  }
+}
+function blockCtx(e){ e.preventDefault(); }
+function blockEvt(e){ e.preventDefault(); }
+els.loginBtn.addEventListener('click', () => { els.loginModal.classList.add('on'); setTimeout(()=>els.user.focus(), 50); });
+els.loginCancel.addEventListener('click', () => els.loginModal.classList.remove('on'));
+els.loginConfirm.addEventListener('click', doLogin);
+els.pass.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+function doLogin(){
+  const u = els.user.value.trim(); const p = els.pass.value;
+  if (u===ADMIN_USER && p===ADMIN_PASS){
+    els.loginModal.classList.remove('on'); setRole(true); els.user.value=''; els.pass.value='';
+  } else { alert('用户名或密码不正确'); }
+}
+els.logoutBtn.addEventListener('click', () => setRole(false));
+
+/* ===== Sheets nav ===== */
+function openSheet(el){ el.classList.add('on'); }
+function closeSheet(el){ el.classList.remove('on'); }
+els.navGallery.addEventListener('click', ()=>{
+  currentHallId=null; document.documentElement.scrollTo({top:0, behavior:'smooth'});
+  setActive(els.navGallery); moveIndicator(els.navGallery); visibleCount = PAGE_STEP; syncHash(); render();
+});
+els.navHalls.addEventListener('click', ()=>{ renderHallsList(); openSheet(els.hallsSheet); setActive(els.navHalls); moveIndicator(els.navHalls); });
+els.navAbout.addEventListener('click', ()=>{ openSheet(els.aboutSheet); setActive(els.navAbout); moveIndicator(els.navAbout); });
+els.navAuthor.addEventListener('click', ()=>{ openSheet(els.authorSheet); setActive(els.navAuthor); moveIndicator(els.navAuthor); });
+els.navContact.addEventListener('click', ()=>{ openSheet(els.contactSheet); setActive(els.navContact); moveIndicator(els.navContact); });
+els.hallsClose.addEventListener('click', ()=> closeSheet(els.hallsSheet));
+els.aboutClose.addEventListener('click', ()=> closeSheet(els.aboutSheet));
+els.authorClose.addEventListener('click', ()=> closeSheet(els.authorSheet));
+els.contactClose.addEventListener('click', ()=> closeSheet(els.contactSheet));
+;[els.hallsSheet, els.aboutSheet, els.authorSheet, els.contactSheet].forEach(s=>{
+  s.addEventListener('click', (e)=>{ if(e.target===s) closeSheet(s); });
+});
+els.clearFilterBtn.addEventListener('click', ()=>{ currentHallId=null; visibleCount = PAGE_STEP; syncHash(); render(); });
+
+function setActive(btn){ [els.navGallery, els.navHalls, els.navAbout, els.navAuthor, els.navContact].forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+function moveIndicator(el){
+  const w = Math.max(28, el.offsetWidth * 0.6);
+  const x = el.offsetLeft + (el.offsetWidth - w)/2;
+  els.menuIndicator.style.width = w + 'px';
+  els.menuIndicator.style.transform = `translateX(${x}px)`;
+}
+
+/* ===== Pagination ===== */
+els.loadMoreBtn.addEventListener('click', ()=>{
+  visibleCount += PAGE_STEP;
+  render();
+});
+
+/* ===== Search bindings & shortcuts ===== */
+els.searchInput.addEventListener('input', onSearchInput);
+els.clearSearchBtn.addEventListener('click', clearSearch);
+document.addEventListener('keydown', (e)=>{
+  if(e.key === '/' && document.activeElement !== els.searchInput && currentIdx<0){
+    e.preventDefault(); els.searchInput.focus();
+  }
+});
+
+/* ===== Backup / Restore ===== */
+els.backupBtn?.addEventListener('click', ()=>{
+  const payload = { items, halls, profile, fav:Array.from(favSet), version:'artiqa-beta1.6', ts: Date.now() };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `artiqa-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+els.restoreBtn?.addEventListener('click', ()=>{
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json';
+  inp.onchange = async (e)=>{
+    const f = e.target.files?.[0]; if(!f) return;
+    try{
+      const txt = await f.text(); const data = JSON.parse(txt);
+      if(data.items && data.halls && data.profile){
+        items = data.items; halls = data.halls; profile = data.profile;
+        favSet = new Set(Array.isArray(data.fav)?data.fav:[]);
+        saveItems(items); saveHalls(halls); saveProfile(profile); saveFavSet();
+        renderAuthor(); renderTiles(); renderHallsList(); visibleCount = PAGE_STEP; render();
+        alert('导入成功');
+      }else{ alert('备份格式不正确'); }
+    }catch(err){ alert('导入失败：'+err?.message); }
+  };
+  inp.click();
+});
+
+/* ===== Init ===== */
+window.addEventListener('DOMContentLoaded', ()=>{
+  loadTheme();
+  render(); renderAuthor(); renderTiles(); setRole(false); moveIndicator(els.navGallery);
+
+  if(window.matchMedia('(pointer:fine)').matches){ els.searchHint.style.display = 'inline'; }
+
+  // 从 URL 恢复（包括主题/展厅/搜索/排序/收藏/直达项）
+  restoreFromHash();
+
+  // 自检
+  try{
+    console.group('%cArtiqa beta1.6 self-test','color:#7c3aed;font-weight:bold');
+    console.assert(els.gallery.childElementCount>=1, '应渲染至少1张作品卡片');
+    renderHallsList();
+    console.assert(els.hallsList instanceof HTMLElement, '展厅列表容器存在');
+    const t0 = getComputedStyle(els.menuIndicator).transform;
+    els.navHalls.click(); const t1 = getComputedStyle(els.menuIndicator).transform;
+    console.assert(t0!==t1, '点击菜单指示条应移动');
+    const ziHeader = parseInt(getComputedStyle(document.querySelector('header')).zIndex)||0;
+    const ziSheet = parseInt(getComputedStyle(els.hallsSheet).zIndex)||0;
+    const ziLightbox = parseInt(getComputedStyle(els.lightbox).zIndex)||0;
+    console.assert(ziSheet>ziHeader && ziLightbox>ziHeader, '弹层遮罩 z-index 正确');
+    console.groupEnd();
+  }catch(e){ console.warn('self-test skipped:', e); }
+});
+window.addEventListener('resize', ()=>{
+  const active = document.querySelector('.menu .link.active') || els.navGallery;
+  moveIndicator(active);
+});
+</script>
+</body>
+</html>
